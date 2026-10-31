@@ -1,5 +1,5 @@
 //! The tree-sitter mechanism.
-//! 
+//!
 //! Parse one file version with its language's grammar and extract the byte
 //! extents of comments and inline tests.
 

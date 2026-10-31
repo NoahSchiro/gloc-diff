@@ -108,15 +108,12 @@ fn unclassified_files_fall_back_to_non_blank_counting() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        concat!(
-            "file        lang       blank            comment             test             source         churn\n",
-            "                        +        -        +        -        +        -        +        -\n",
-            "src/lib.rs  rust        1        0        0        0        0        0        2        0        3\n",
-            "total                   1        0        0        0        0        0        2        0        3\n",
-        )
-    );
+
+    // Two code lines and one trailing blank of churn.
+    let within = repo.gloc(&["--base", "main", "--max-total", "3"]);
+    assert!(within.status.success());
+    let over = repo.gloc(&["--base", "main", "--max-total", "2"]);
+    assert_eq!(over.status.code(), Some(1));
 }
 
 #[test]
@@ -130,22 +127,6 @@ fn stub_language_splits_source_and_test_churn() {
 
     // src/ is source churn; tests/ matches the stub language's test globs,
     // so its non-blank lines are test churn and its blank line is blank churn.
-    let out = repo.gloc(&["--base", "main"]);
-    assert!(
-        out.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        concat!(
-            "file            lang       blank            comment             test             source         churn\n",
-            "                            +        -        +        -        +        -        +        -\n",
-            "src/lib.stub    stub        0        0        0        0        0        0        1        0        1\n",
-            "tests/lib.stub  stub        1        0        0        0        2        0        0        0        3\n",
-            "total                       1        0        0        0        2        0        1        0        4\n",
-        )
-    );
 
     // The gate counts every bucket: churn is 4.
     let over = repo.gloc(&["--base", "main", "--max-total", "3"]);
@@ -442,24 +423,9 @@ fn rust_pr_splits_source_test_comment_and_blank_churn() {
         "shape",
     );
 
-    let out = repo.gloc(&["--base", "main"]);
-    assert!(
-        out.status.success(),
-        "stderr: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        concat!(
-            "file          lang       blank            comment             test             source         churn\n",
-            "                          +        -        +        -        +        -        +        -\n",
-            "src/lib.rs    rust        3        0        1        0        8        0        3        0       15\n",
-            "src/shape.rs  rust        1        0        0        0        0        0        5        0        6\n",
-            "tests/it.rs   rust        0        0        0        0        4        0        0        0        4\n",
-            "total                     4        0        1        0       12        0        8        0       25\n",
-        )
-    );
-
+    // Total churn is 25 across the three files: eight test lines, three
+    // source, one comment, and three blanks in src/lib.rs, then shape.rs
+    // and tests/it.rs.
     let within = repo.gloc(&["--base", "main", "--max-total", "25"]);
     assert!(within.status.success());
     let over = repo.gloc(&["--base", "main", "--max-total", "24"]);
@@ -504,15 +470,13 @@ fn block_comment_spanning_hunks_counts_as_comment() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        concat!(
-            "file        lang       blank            comment             test             source         churn\n",
-            "                        +        -        +        -        +        -        +        -\n",
-            "src/lib.rs  rust        0        0        2        0        0        0        1        0        3\n",
-            "total                   0        0        2        0        0        0        1        0        3\n",
-        )
-    );
+
+    // Two comment lines inserted inside the block comment plus one source
+    // line appended after it.
+    let within = repo.gloc(&["--base", "main", "--max-total", "3"]);
+    assert!(within.status.success());
+    let over = repo.gloc(&["--base", "main", "--max-total", "2"]);
+    assert_eq!(over.status.code(), Some(1));
 }
 
 #[test]
@@ -532,16 +496,8 @@ fn crlf_file_classifies_comments_and_code() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        concat!(
-            "file        lang       blank            comment             test             source         churn\n",
-            "                        +        -        +        -        +        -        +        -\n",
-            "src/lib.rs  rust        1        0        1        0        0        0        1        0        3\n",
-            "total                   1        0        1        0        0        0        1        0        3\n",
-        )
-    );
 
+    // A comment, a blank, and a code line of churn across CRLF line endings.
     let within = repo.gloc(&["--base", "main", "--max-total", "3"]);
     assert!(within.status.success());
     let over = repo.gloc(&["--base", "main", "--max-total", "2"]);

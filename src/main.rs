@@ -22,6 +22,11 @@ use clap::Parser;
 
 use crate::cli::Args;
 use crate::count::{Buckets, FileCount};
+use tabled::builder::Builder;
+use tabled::settings::{
+    Alignment, Modify, Padding, Span, Style,
+    object::{Columns, FirstColumn, LastColumn},
+};
 
 fn main() -> ExitCode {
     let args = Args::parse();
@@ -120,79 +125,46 @@ fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineCl
     classify::classify_lines(text, &comments, &tests, is_test_path)
 }
 
+/// Print the churn table.
 fn print_table(counts: &[FileCount<'_>], total: Buckets) {
-    // Width of every numeric column.
-    let col_w = 7;
-    // Width of one class group (added and removed cols).
-    let group_w = 2 * col_w + 2;
-    let file_w = counts
-        .iter()
-        .map(|c| c.path.len())
-        .chain(["file", "total"].map(str::len))
-        .max()
-        .unwrap_or(4);
-    let lang_w = counts
-        .iter()
-        .map(|c| c.lang.len())
-        .chain(std::iter::once("lang".len()))
-        .max()
-        .unwrap_or(4);
-
-    println!(
-        "{:<file_w$}  {:<lang_w$}  {:^group_w$}  {:^group_w$}  {:^group_w$}  {:^group_w$}  {:>col_w$}",
-        "file",
-        "lang",
-        "blank",
-        "comment",
-        "test",
-        "source",
-        "churn",
-        file_w = file_w,
-        lang_w = lang_w,
-        group_w = group_w,
-        col_w = col_w,
-    );
-    let marks = format!(
-        "{:<file_w$}  {:<lang_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}",
-        "",
-        "",
-        "+",
-        "-",
-        "+",
-        "-",
-        "+",
-        "-",
-        "+",
-        "-",
-        "",
-        file_w = file_w,
-        lang_w = lang_w,
-        col_w = col_w,
-    );
-    println!("{}", marks.trim_end());
-
+    let mut builder = Builder::new();
+    builder.push_record([
+        "file", "lang", "blank", "", "comment", "", "test", "", "source", "", "churn",
+    ]);
+    builder.push_record(["", "", "+", "-", "+", "-", "+", "-", "+", "-", ""]);
     for count in counts {
-        print_row(count.path, count.lang, count.buckets, file_w, lang_w, col_w);
+        builder.push_record(count_row(count.path, count.lang, count.buckets));
     }
-    print_row("total", "", total, file_w, lang_w, col_w);
+    builder.push_record(count_row("total", "", total));
+
+    let mut table = builder.build();
+    table
+        .with(Style::modern())
+        .with(Modify::new(Columns::new(2..)).with(Alignment::right()))
+        .with(Modify::new(FirstColumn).with(Padding::new(0, 1, 0, 0)))
+        .with(Modify::new(LastColumn).with(Padding::new(1, 0, 0, 0)));
+    for col in [2, 4, 6, 8] {
+        table.modify((0, col), Span::column(2));
+        table.modify((0, col), Alignment::center());
+    }
+    for line in table.to_string().lines() {
+        println!("{}", line.trim_end());
+    }
 }
 
-fn print_row(file: &str, lang: &str, buckets: Buckets, file_w: usize, lang_w: usize, col_w: usize) {
-    println!(
-        "{:<file_w$}  {:<lang_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}  {:>col_w$}",
-        file,
-        lang,
-        buckets.blank.added,
-        buckets.blank.removed,
-        buckets.comment.added,
-        buckets.comment.removed,
-        buckets.test.added,
-        buckets.test.removed,
-        buckets.source.added,
-        buckets.source.removed,
-        buckets.churn(),
-        file_w = file_w,
-        lang_w = lang_w,
-        col_w = col_w,
-    );
+/// One table row: the four buckets' added and removed counts, then churn.
+fn count_row(file: &str, lang: &str, buckets: Buckets) -> [String; 11] {
+    [
+        file.to_owned(),
+        lang.to_owned(),
+        buckets.blank.added.to_string(),
+        buckets.blank.removed.to_string(),
+        buckets.comment.added.to_string(),
+        buckets.comment.removed.to_string(),
+        buckets.test.added.to_string(),
+        buckets.test.removed.to_string(),
+        buckets.source.added.to_string(),
+        buckets.source.removed.to_string(),
+        buckets.churn().to_string(),
+    ]
 }

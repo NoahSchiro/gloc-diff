@@ -52,7 +52,6 @@ pub static ALL: &[Lang] = &[
             test_query: include_str!("lang/rust/test.scm"),
         }),
     },
-
     // For testing only
     Lang {
         name: "stub",
