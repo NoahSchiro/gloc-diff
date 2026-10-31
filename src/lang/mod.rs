@@ -3,7 +3,9 @@
 //!
 //! A [`Lang`] carries everything the classifier needs per language: where
 //! test code lives by path, and how to parse comments and inline tests
-//! out of the text.
+//! out of the text. Languages register from submodules of this one.
+
+mod rust;
 
 use std::path::Path;
 
@@ -23,6 +25,7 @@ pub struct Grammar {
 }
 
 /// Everything gloc knows about one language.
+#[derive(Clone, Copy)]
 pub struct Lang {
     pub name: &'static str,
     pub extensions: &'static [&'static str],
@@ -42,16 +45,7 @@ impl Lang {
 /// Every language gloc knows. Extensions must not repeat across languages,
 /// so [`for_path`] stays unambiguous.
 pub static ALL: &[Lang] = &[
-    Lang {
-        name: "rust",
-        extensions: &["rs"],
-        test_globs: &["**/tests/**", "*_test.rs"],
-        grammar: Some(Grammar {
-            language: || tree_sitter_rust::LANGUAGE.into(),
-            comment_query: include_str!("lang/rust/comment.scm"),
-            test_query: include_str!("lang/rust/test.scm"),
-        }),
-    },
+    rust::LANG,
     // For testing only
     Lang {
         name: "stub",
@@ -94,16 +88,6 @@ mod tests {
         assert!(lang.is_test_path("deep/other_test.stub"));
         assert!(!lang.is_test_path("src/x.stub"));
         assert!(!lang.is_test_path("src/test_x.stub"));
-    }
-
-    #[test]
-    fn rust_test_globs_cover_test_directories_and_suffixes() {
-        let lang = for_path("src/lib.rs").expect("rust is registered");
-        assert!(lang.is_test_path("tests/cli.rs"));
-        assert!(lang.is_test_path("crates/a/tests/cli.rs"));
-        assert!(lang.is_test_path("src/payment_test.rs"));
-        assert!(!lang.is_test_path("src/lib.rs"));
-        assert!(!lang.is_test_path("src/tests.rs"));
     }
 
     #[test]
