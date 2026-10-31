@@ -1,12 +1,16 @@
 //! gloc reports source and test churn between a PR branch and its target
-//! branch. For now, we count non-blank lines; per-language classification
-//! and output formats come later.
+//! branch. File paths are filtered by globs, regexes, and gitignore rules.
+//! Non-blank lines are counted per surviving file.
 
 mod cli;
+mod config;
 mod count;
 mod diff;
+mod filter;
 mod git;
 
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -33,7 +37,20 @@ fn main() -> ExitCode {
 fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let diff_text = git::diff_range(&args.base, &args.head)?;
     let files = diff::parse_diff(&diff_text);
-    let counts = count::count_files(&files);
+
+    let repo_root = git::toplevel()?;
+    let options = filter::Options::merge(args.filter_options(), config::load(&repo_root)?);
+    let changed_dirs: BTreeSet<PathBuf> = files
+        .iter()
+        .filter_map(|file| Path::new(&file.path).parent())
+        .map(Path::to_path_buf)
+        .collect();
+    let filters = filter::Filters::compile(&options, &repo_root, &changed_dirs)?;
+
+    let counts: Vec<FileCount> = count::count_files(&files)
+        .into_iter()
+        .filter(|file| filters.keeps(file.path))
+        .collect();
     let total = count::total(&counts);
     print_table(&counts, total);
 

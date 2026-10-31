@@ -2,7 +2,11 @@
 
 use clap::Parser;
 
+use crate::filter;
+
 /// Valid arguments to `gloc`
+///
+/// Cli args always override arguments in .gloc.toml
 #[derive(Parser, Debug)]
 #[command(name = "gloc", version)]
 pub struct Args {
@@ -20,4 +24,40 @@ pub struct Args {
     /// exceeds this number.
     #[arg(long)]
     pub max_total: Option<u64>,
+
+    /// Only count files matching this gitignore-style glob. Repeatable.
+    #[arg(long, value_name = "GLOB")]
+    pub include: Vec<String>,
+
+    /// Skip files matching this gitignore-style glob. Repeatable.
+    /// Excludes beat includes.
+    #[arg(long, value_name = "GLOB")]
+    pub exclude: Vec<String>,
+
+    /// Same as [`Args::include`] but regex instead of glob
+    /// Unioned with [`Args::include`]
+    #[arg(long, value_name = "REGEX")]
+    pub include_re: Vec<String>,
+
+    /// Same as [`Args::exclude`] but regex instead of glob.
+    /// Unioned with [`Args::exclude`]
+    #[arg(long, value_name = "REGEX")]
+    pub exclude_re: Vec<String>,
+
+    /// Do not apply .gitignore rules.
+    #[arg(long)]
+    pub no_gitignore: bool,
+}
+
+impl Args {
+    /// The filter half of the arguments, in the shared option shape.
+    pub fn filter_options(&self) -> filter::Options {
+        filter::Options {
+            include: self.include.clone(),
+            exclude: self.exclude.clone(),
+            include_re: self.include_re.clone(),
+            exclude_re: self.exclude_re.clone(),
+            no_gitignore: self.no_gitignore,
+        }
+    }
 }

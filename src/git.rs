@@ -1,6 +1,7 @@
 //! The only place gloc runs external processes: shelling out to git.
 
 use std::fmt;
+use std::path::PathBuf;
 use std::process::Command;
 
 /// A git invocation that failed to run or exited nonzero.
@@ -21,14 +22,30 @@ impl std::error::Error for GitError {}
 /// Unified diff between the merge-base of `base` and `head` and `head`
 /// itself (`git diff base...head`), with zero context and rename detection.
 pub fn diff_range(base: &str, head: &str) -> Result<String, GitError> {
-    let git_args = [
+    run(&[
         "diff",
         "-U0",
         "--no-color",     // plain parseable text
         "--no-ext-diff",  // plain parseable text
         "--find-renames", // file renames don't count as changes
         &format!("{base}...{head}"),
-    ];
+    ])
+}
+
+/// Absolute path of the working tree root. 
+///
+/// Many of the files we need are relative to this.
+/// - Diff output paths
+/// - `.gloc.toml`
+/// - gitignore files
+pub fn toplevel() -> Result<PathBuf, GitError> {
+    let path = run(&["rev-parse", "--show-toplevel"])?;
+    Ok(PathBuf::from(path.trim_end()))
+}
+
+/// Run one git invocation, returning its stdout or an error naming the
+/// command and its stderr.
+fn run(git_args: &[&str]) -> Result<String, GitError> {
     let output = Command::new("git")
         .args(git_args)
         .output()
