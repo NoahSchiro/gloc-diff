@@ -24,7 +24,7 @@ use crate::cli::{Args, TableStyle};
 use crate::count::{Buckets, FileCount};
 use tabled::builder::Builder;
 use tabled::settings::{
-    Alignment, Modify, Padding, Span, Style,
+    Alignment, Modify, Padding, Style,
     object::{Columns, FirstColumn, LastColumn},
 };
 
@@ -148,9 +148,18 @@ fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineCl
 fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle) {
     let mut builder = Builder::new();
     builder.push_record([
-        "file", "lang", "blank", "", "comment", "", "test", "", "source", "", "churn",
+        "file",
+        "lang",
+        "blank +",
+        "blank -",
+        "comment +",
+        "comment -",
+        "test +",
+        "test -",
+        "source +",
+        "source -",
+        "churn",
     ]);
-    builder.push_record(["", "", "+", "-", "+", "-", "+", "-", "+", "-", ""]);
     for count in counts {
         builder.push_record(count_row(&count.path, count.lang, count.buckets));
     }
@@ -177,10 +186,6 @@ fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle) {
         TableStyle::Dots => table.with(Style::dots()),
         TableStyle::RestructuredText => table.with(Style::re_structured_text()),
     };
-    for col in [2, 4, 6, 8] {
-        table.modify((0, col), Span::column(2));
-        table.modify((0, col), Alignment::center());
-    }
     for line in table.to_string().lines() {
         println!("{}", line.trim_end());
     }

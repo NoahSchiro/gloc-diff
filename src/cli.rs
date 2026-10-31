@@ -73,7 +73,7 @@ pub struct Args {
 }
 
 /// Border style of the churn table, one of the tabled presets.
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum TableStyle {
     Empty,
     Blank,

@@ -644,3 +644,34 @@ fn max_src_and_max_test_gate_their_buckets() {
     assert!(stderr.contains("max-src"), "stderr: {stderr}");
     assert!(stderr.contains("max-test"), "stderr: {stderr}");
 }
+
+#[test]
+fn markdown_style_emits_a_valid_gfm_table() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a()\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a()\nfn b()\n", "grow");
+
+    let out = repo.gloc(&["--base", "main", "--style", "markdown"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+
+    // Every row of a GFM table must have the same number of cells, or
+    // GitHub refuses to render the block at all. The grouped two-row
+    // header (with its column spans) broke this; the flat header with
+    // signed column names is the markdown shape.
+    let cell_counts: Vec<usize> = stdout
+        .lines()
+        .map(|line| line.matches('|').count())
+        .collect();
+    assert!(
+        cell_counts.windows(2).all(|pair| pair[0] == pair[1]),
+        "table: {stdout}"
+    );
+    assert!(stdout.contains("blank +"), "table: {stdout}");
+    assert!(!stdout.contains("| blank |"), "table: {stdout}");
+}

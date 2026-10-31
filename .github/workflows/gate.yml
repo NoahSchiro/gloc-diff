@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   report:
-    name: Churn report
+    name: gloc report
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
           fi
           {
             echo "<!-- gloc report: do not edit -->"
-            echo "## Churn report"
+            echo "## gloc report"
             echo
             cat report.md
             echo
