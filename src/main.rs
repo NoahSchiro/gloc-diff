@@ -11,6 +11,7 @@ mod diff;
 mod filter;
 mod git;
 mod globs;
+mod is_even;
 mod lang;
 mod syntax;
 
