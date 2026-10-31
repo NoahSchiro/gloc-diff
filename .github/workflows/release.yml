@@ -32,8 +32,17 @@ jobs:
           CC_x86_64_unknown_linux_musl: musl-gcc
         run: cargo build --release --all-features --target x86_64-unknown-linux-musl
 
-      - name: Check the binary is static
-        run: file --brief target/x86_64-unknown-linux-musl/release/gloc | grep --quiet 'statically linked'
+      - name: Check the binary is self-contained
+        run: |
+          file --brief target/x86_64-unknown-linux-musl/release/gloc
+          # Static and static-PIE binaries have no program interpreter; a
+          # dynamically linked build would name /lib/ld-musl-*.so.1 here.
+          # (file(1) calls the static-PIE shape "static-pie linked", which
+          # is why this is not a grep on file's output.)
+          ! readelf --program-headers target/x86_64-unknown-linux-musl/release/gloc | grep --quiet INTERP
+          # And it must run on this glibc-only host: a build expecting the
+          # musl dynamic loader could not.
+          target/x86_64-unknown-linux-musl/release/gloc --version
 
       - name: Package
         run: |
