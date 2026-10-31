@@ -177,8 +177,8 @@ mod tests {
     #[test]
     fn lines_map_to_their_classified_positions() {
         let file = file(
-            "a.rs",
-            Some("a.rs"),
+            "a.xyz",
+            Some("a.xyz"),
             vec![hunk(2, 3, &["one", "two"], &["x", "y"])],
         );
         let old = [

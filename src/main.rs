@@ -12,6 +12,7 @@ mod filter;
 mod git;
 mod globs;
 mod lang;
+mod syntax;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -62,8 +63,8 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         }
         let old_text = old_side_text(file, &merge_base)?;
         let new_text = new_side_text(file, &args.head)?;
-        let old_classes = classify::classify_side(file.old_path.as_deref(), old_text.as_deref());
-        let new_classes = classify::classify_side(Some(file.path.as_str()), new_text.as_deref());
+        let old_classes = classify_blob(file.old_path.as_deref(), old_text.as_deref());
+        let new_classes = classify_blob(Some(file.path.as_str()), new_text.as_deref());
         counts.push(count::count_file(file, &old_classes, &new_classes));
     }
 
@@ -103,6 +104,20 @@ fn new_side_text(file: &diff::FileDiff<'_>, head: &str) -> Result<Option<String>
         return Ok(None);
     }
     git::blob(head, &file.path).map(Some)
+}
+
+/// Per-line [`classify::LineClass`] of one file's content.
+fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineClass> {
+    let (Some(path), Some(text)) = (path, text) else {
+        return Vec::new();
+    };
+    let lang = lang::for_path(path);
+    let is_test_path = lang.is_some_and(|lang| lang.is_test_path(path));
+    let (comments, tests) = match lang.and_then(|lang| lang.grammar) {
+        Some(grammar) => syntax::ranges(text, &grammar),
+        None => (Vec::new(), Vec::new()),
+    };
+    classify::classify_lines(text, &comments, &tests, is_test_path)
 }
 
 fn print_table(counts: &[FileCount<'_>], total: Buckets) {

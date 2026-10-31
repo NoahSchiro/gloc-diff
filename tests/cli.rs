@@ -111,10 +111,10 @@ fn unclassified_files_fall_back_to_non_blank_counting() {
     assert_eq!(
         String::from_utf8_lossy(&out.stdout),
         concat!(
-            "file        lang               blank            comment             test             source         churn\n",
-            "                                +        -        +        -        +        -        +        -\n",
-            "src/lib.rs  unclassified        1        0        0        0        0        0        2        0        3\n",
-            "total                           1        0        0        0        0        0        2        0        3\n",
+            "file        lang       blank            comment             test             source         churn\n",
+            "                        +        -        +        -        +        -        +        -\n",
+            "src/lib.rs  rust        1        0        0        0        0        0        2        0        3\n",
+            "total                   1        0        0        0        0        0        2        0        3\n",
         )
     );
 }
@@ -380,4 +380,170 @@ fn invalid_config_file_is_an_error() {
     assert_eq!(out.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains(".gloc.toml"), "stderr: {stderr}");
+}
+
+#[test]
+fn rust_pr_splits_source_test_comment_and_blank_churn() {
+    let repo = Repo::new();
+    repo.commit(
+        "src/lib.rs",
+        concat!(
+            "fn greet(name: &str) -> String {\n",
+            "    format!(\"hello {name}\")\n",
+            "}\n",
+        ),
+        "base",
+    );
+    repo.branch("feature");
+    repo.commit(
+        "src/lib.rs",
+        concat!(
+            "fn greet(name: &str) -> String {\n",
+            "    format!(\"hello {name}\")\n",
+            "}\n",
+            "\n",                                               // blank
+            "/// Greets loudly.\n",                             // comment
+            "fn shout(name: &str) -> String {\n",               // source
+            "    format!(\"HELLO {name}\") // note\n",          // source: trailing comment
+            "}\n",                                              // source
+            "\n",                                               // blank
+            "#[cfg(test)]\n",                                   // test
+            "mod tests {\n",                                    // test
+            "    use super::*;\n",                              // test
+            "\n",                                               // blank
+            "    #[test]\n",                                    // test
+            "    fn greets() {\n",                              // test
+            "        assert_eq!(greet(\"x\"), \"hello x\");\n", // test
+            "    }\n",                                          // test
+            "}\n",                                              // test
+        ),
+        "shout and inline tests",
+    );
+    repo.commit(
+        "tests/it.rs",
+        concat!(
+            "#[test]\n",
+            "fn it_works() {\n",
+            "    assert_eq!(2 + 2, 4);\n",
+            "}\n",
+        ),
+        "integration test",
+    );
+    repo.commit(
+        "src/shape.rs",
+        concat!(
+            "#[derive(Debug)]\n", // an attribute that is not about tests
+            "struct Shape;\n",
+            "\n",
+            "fn area(w: u64, h: u64) -> u64 {\n",
+            "    w * h\n",
+            "}\n",
+        ),
+        "shape",
+    );
+
+    let out = repo.gloc(&["--base", "main"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        concat!(
+            "file          lang       blank            comment             test             source         churn\n",
+            "                          +        -        +        -        +        -        +        -\n",
+            "src/lib.rs    rust        3        0        1        0        8        0        3        0       15\n",
+            "src/shape.rs  rust        1        0        0        0        0        0        5        0        6\n",
+            "tests/it.rs   rust        0        0        0        0        4        0        0        0        4\n",
+            "total                     4        0        1        0       12        0        8        0       25\n",
+        )
+    );
+
+    let within = repo.gloc(&["--base", "main", "--max-total", "25"]);
+    assert!(within.status.success());
+    let over = repo.gloc(&["--base", "main", "--max-total", "24"]);
+    assert_eq!(over.status.code(), Some(1));
+}
+
+#[test]
+fn block_comment_spanning_hunks_counts_as_comment() {
+    let repo = Repo::new();
+    repo.commit(
+        "src/lib.rs",
+        concat!(
+            "fn a() {}\n",
+            "/* long block\n",
+            "   comment\n",
+            "   end */\n",
+            "fn b() {}\n",
+        ),
+        "base",
+    );
+    repo.branch("feature");
+    // Lines inserted inside the comment, plus code appended after it: two
+    // hunks, with the comment's delimiters outside both hunks' context.
+    repo.commit(
+        "src/lib.rs",
+        concat!(
+            "fn a() {}\n",
+            "/* long block\n",
+            "   comment\n",
+            "   inserted one\n",
+            "   inserted two\n",
+            "   end */\n",
+            "fn b() {}\n",
+            "fn c() {}\n",
+        ),
+        "grow",
+    );
+
+    let out = repo.gloc(&["--base", "main"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        concat!(
+            "file        lang       blank            comment             test             source         churn\n",
+            "                        +        -        +        -        +        -        +        -\n",
+            "src/lib.rs  rust        0        0        2        0        0        0        1        0        3\n",
+            "total                   0        0        2        0        0        0        1        0        3\n",
+        )
+    );
+}
+
+#[test]
+fn crlf_file_classifies_comments_and_code() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a() {}\r\n", "base");
+    repo.branch("feature");
+    repo.commit(
+        "src/lib.rs",
+        "fn a() {}\r\n// note\r\n\r\nfn b() {}\r\n",
+        "grow",
+    );
+
+    let out = repo.gloc(&["--base", "main"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        concat!(
+            "file        lang       blank            comment             test             source         churn\n",
+            "                        +        -        +        -        +        -        +        -\n",
+            "src/lib.rs  rust        1        0        1        0        0        0        1        0        3\n",
+            "total                   1        0        1        0        0        0        1        0        3\n",
+        )
+    );
+
+    let within = repo.gloc(&["--base", "main", "--max-total", "3"]);
+    assert!(within.status.success());
+    let over = repo.gloc(&["--base", "main", "--max-total", "2"]);
+    assert_eq!(over.status.code(), Some(1));
 }
