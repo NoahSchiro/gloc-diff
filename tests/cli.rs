@@ -503,3 +503,39 @@ fn crlf_file_classifies_comments_and_code() {
     let over = repo.gloc(&["--base", "main", "--max-total", "2"]);
     assert_eq!(over.status.code(), Some(1));
 }
+
+#[test]
+fn style_flag_picks_the_table_border_style() {
+    let repo = Repo::new();
+    repo.commit("a.txt", "one\n", "base");
+    repo.branch("feature");
+    repo.commit("a.txt", "one\ntwo\n", "grow");
+
+    // The default style is borderless.
+    let plain = repo.gloc(&["--base", "main"]);
+    assert!(
+        plain.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&plain.stderr)
+    );
+    assert!(
+        !String::from_utf8_lossy(&plain.stdout).contains('|'),
+        "table: {}",
+        String::from_utf8_lossy(&plain.stdout)
+    );
+
+    let bordered = repo.gloc(&["--base", "main", "--style", "ascii"]);
+    assert!(
+        bordered.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&bordered.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&bordered.stdout).contains('|'),
+        "table: {}",
+        String::from_utf8_lossy(&bordered.stdout)
+    );
+
+    let out = repo.gloc(&["--base", "main", "--style", "nonsense"]);
+    assert_eq!(out.status.code(), Some(2));
+}

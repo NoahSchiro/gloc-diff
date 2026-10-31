@@ -20,7 +20,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use crate::cli::Args;
+use crate::cli::{Args, TableStyle};
 use crate::count::{Buckets, FileCount};
 use tabled::builder::Builder;
 use tabled::settings::{
@@ -74,7 +74,7 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
     }
 
     let total = count::total(&counts);
-    print_table(&counts, total);
+    print_table(&counts, total, args.style);
 
     if let Some(max_total) = args.max_total
         && total.churn() > max_total
@@ -125,8 +125,8 @@ fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineCl
     classify::classify_lines(text, &comments, &tests, is_test_path)
 }
 
-/// Print the churn table.
-fn print_table(counts: &[FileCount<'_>], total: Buckets) {
+/// Print the churn table. `style` picks one of the tabled border presets.
+fn print_table(counts: &[FileCount<'_>], total: Buckets, style: TableStyle) {
     let mut builder = Builder::new();
     builder.push_record([
         "file", "lang", "blank", "", "comment", "", "test", "", "source", "", "churn",
@@ -138,11 +138,26 @@ fn print_table(counts: &[FileCount<'_>], total: Buckets) {
     builder.push_record(count_row("total", "", total));
 
     let mut table = builder.build();
-    table
-        .with(Style::modern())
-        .with(Modify::new(Columns::new(2..)).with(Alignment::right()))
-        .with(Modify::new(FirstColumn).with(Padding::new(0, 1, 0, 0)))
-        .with(Modify::new(LastColumn).with(Padding::new(1, 0, 0, 0)));
+    table.with(Modify::new(Columns::new(2..)).with(Alignment::right()));
+    match style {
+        TableStyle::Empty => table
+            .with(Style::empty())
+            // Borderless: drop the outer edge padding.
+            .with(Modify::new(FirstColumn).with(Padding::new(0, 1, 0, 0)))
+            .with(Modify::new(LastColumn).with(Padding::new(1, 0, 0, 0))),
+        TableStyle::Blank => table.with(Style::blank()),
+        TableStyle::Ascii => table.with(Style::ascii()),
+        TableStyle::AsciiRounded => table.with(Style::ascii_rounded()),
+        TableStyle::Psql => table.with(Style::psql()),
+        TableStyle::Markdown => table.with(Style::markdown()),
+        TableStyle::Modern => table.with(Style::modern()),
+        TableStyle::ModernRounded => table.with(Style::modern_rounded()),
+        TableStyle::Sharp => table.with(Style::sharp()),
+        TableStyle::Rounded => table.with(Style::rounded()),
+        TableStyle::Extended => table.with(Style::extended()),
+        TableStyle::Dots => table.with(Style::dots()),
+        TableStyle::RestructuredText => table.with(Style::re_structured_text()),
+    };
     for col in [2, 4, 6, 8] {
         table.modify((0, col), Span::column(2));
         table.modify((0, col), Alignment::center());

@@ -1,6 +1,6 @@
 //! The command-line contract
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 use crate::filter;
 
@@ -47,6 +47,28 @@ pub struct Args {
     /// Do not apply .gitignore rules.
     #[arg(long)]
     pub no_gitignore: bool,
+
+    /// Border style of the churn table.
+    #[arg(long, value_enum, default_value_t = TableStyle::Sharp)]
+    pub style: TableStyle,
+}
+
+/// Border style of the churn table, one of the tabled presets.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum TableStyle {
+    Empty,
+    Blank,
+    Ascii,
+    AsciiRounded,
+    Psql,
+    Markdown,
+    Modern,
+    ModernRounded,
+    Sharp,
+    Rounded,
+    Extended,
+    Dots,
+    RestructuredText,
 }
 
 impl Args {
