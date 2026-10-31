@@ -26,9 +26,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Without a tag this grabs the latest release; pin one (e.g.
-          # `gh release download v0.1.0 ...`) for reproducible gates.
-          gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" \
+          gh release download --repo "$GITHUB_REPOSITORY" \
             --pattern 'gloc-x86_64-linux-musl.tar.gz' --clobber
           tar --extract --gzip --file gloc-x86_64-linux-musl.tar.gz
           chmod +x gloc
