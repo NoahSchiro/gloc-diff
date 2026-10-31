@@ -1,6 +1,7 @@
 //! This module counts line churn and classifies into into [`Buckets`]
 //! (source, test, comment, or blank) each with added and removed counts.
 
+use std::collections::BTreeMap;
 use std::iter::Sum;
 use std::ops::Add;
 
@@ -87,20 +88,22 @@ impl Sum for Buckets {
     }
 }
 
-/// One file's churn: which language counted it, and the four buckets.
-pub struct FileCount<'a> {
-    pub path: &'a str,
+/// One file's (or directory's) churn: which language
+/// counted it, and the four buckets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileCount {
+    pub path: String,
     pub lang: &'static str,
     pub buckets: Buckets,
 }
 
 /// Count one file's churn by mapping each hunk line onto the per-line classes
 /// of its old and new versions.
-pub fn count_file<'a>(
-    file: &'a FileDiff<'_>,
+pub fn count_file(
+    file: &FileDiff<'_>,
     old_classes: &[LineClass],
     new_classes: &[LineClass],
-) -> FileCount<'a> {
+) -> FileCount {
     let lang_name = if file.is_binary {
         "binary"
     } else {
@@ -120,7 +123,7 @@ pub fn count_file<'a>(
     }
 
     FileCount {
-        path: &file.path,
+        path: file.path.clone(),
         lang: lang_name,
         buckets,
     }
@@ -140,8 +143,41 @@ fn class_at(classes: &[LineClass], number: u64, line: &str) -> LineClass {
 }
 
 /// The sum of every file's buckets.
-pub fn total(counts: &[FileCount<'_>]) -> Buckets {
+pub fn total(counts: &[FileCount]) -> Buckets {
     counts.iter().map(|c| c.buckets).sum()
+}
+
+/// Roll per-file counts up into one row per path prefix at `depth`.
+/// 
+/// Directory rows carry no language. Rows are sorted by path.
+pub fn rollup(counts: Vec<FileCount>, depth: usize) -> Vec<FileCount> {
+    let mut groups: BTreeMap<String, FileCount> = BTreeMap::new();
+    for count in counts {
+        let key = group_key(&count.path, depth);
+        let group = groups.entry(key.to_owned()).or_insert_with(|| FileCount {
+            path: key.to_owned(),
+            lang: if key == count.path { count.lang } else { "" },
+            buckets: Buckets::default(),
+        });
+        group.buckets = group.buckets + count.buckets;
+    }
+    groups.into_values().collect()
+}
+
+/// The row path for `path` at grouping `depth`.
+fn group_key(path: &str, depth: usize) -> &str {
+    let mut end = path.len();
+    let mut seen = 0;
+    for (offset, byte) in path.bytes().enumerate() {
+        if byte == b'/' {
+            seen += 1;
+            if seen == depth {
+                end = offset;
+                break;
+            }
+        }
+    }
+    &path[..end]
 }
 
 #[cfg(test)]
@@ -340,7 +376,7 @@ mod tests {
     fn totals_sum_every_bucket() {
         let counts = vec![
             FileCount {
-                path: "a",
+                path: "a".to_owned(),
                 lang: "stub",
                 buckets: Buckets {
                     source: Count {
@@ -356,7 +392,7 @@ mod tests {
                 },
             },
             FileCount {
-                path: "b",
+                path: "b".to_owned(),
                 lang: "unclassified",
                 buckets: Buckets {
                     source: Count::default(),
@@ -393,5 +429,119 @@ mod tests {
         );
         assert_eq!(total.blank, Count::default());
         assert_eq!(total.churn(), 7);
+    }
+
+    /// A count of `added` source lines and nothing else.
+    fn source(path: &str, lang: &'static str, added: u64) -> FileCount {
+        FileCount {
+            path: path.to_owned(),
+            lang,
+            buckets: Buckets {
+                source: Count { added, removed: 0 },
+                ..Buckets::default()
+            },
+        }
+    }
+
+    #[test]
+    fn rollup_groups_deeper_files_into_their_directory() {
+        let rolled = rollup(
+            vec![
+                source("src/lib.rs", "rust", 1),
+                source("src/app.rs", "rust", 2),
+                source("tests/x.rs", "rust", 4),
+            ],
+            1,
+        );
+        assert_eq!(rolled, vec![source("src", "", 3), source("tests", "", 4),]);
+    }
+
+    #[test]
+    fn rollup_keeps_files_shallower_than_the_depth_alone() {
+        let rolled = rollup(
+            vec![
+                source("README.md", "unclassified", 1),
+                source("src/lib.rs", "rust", 2),
+            ],
+            1,
+        );
+        assert_eq!(
+            rolled,
+            vec![source("README.md", "unclassified", 1), source("src", "", 2),]
+        );
+    }
+
+    #[test]
+    fn rollup_at_depth_two_splits_second_level_directories() {
+        let rolled = rollup(
+            vec![
+                source("src/lib.rs", "rust", 1),
+                source("src/app/main.rs", "rust", 2),
+            ],
+            2,
+        );
+        assert_eq!(
+            rolled,
+            vec![source("src/app", "", 2), source("src/lib.rs", "rust", 1),]
+        );
+    }
+
+    #[test]
+    fn rollup_sums_every_bucket() {
+        let rolled = rollup(
+            vec![
+                FileCount {
+                    path: "a/x.rs".to_owned(),
+                    lang: "rust",
+                    buckets: Buckets {
+                        source: Count::default(),
+                        test: Count {
+                            added: 2,
+                            removed: 0,
+                        },
+                        comment: Count {
+                            added: 0,
+                            removed: 1,
+                        },
+                        blank: Count::default(),
+                    },
+                },
+                source("a/y.rs", "rust", 3),
+            ],
+            1,
+        );
+        assert_eq!(rolled.len(), 1);
+        assert_eq!(rolled[0].path, "a");
+        assert_eq!(rolled[0].lang, "");
+        assert_eq!(
+            rolled[0].buckets.test,
+            Count {
+                added: 2,
+                removed: 0
+            }
+        );
+        assert_eq!(
+            rolled[0].buckets.source,
+            Count {
+                added: 3,
+                removed: 0
+            }
+        );
+        assert_eq!(
+            rolled[0].buckets.comment,
+            Count {
+                added: 0,
+                removed: 1
+            }
+        );
+    }
+
+    #[test]
+    fn group_key_takes_the_first_depth_components() {
+        assert_eq!(group_key("src/lib.rs", 1), "src");
+        assert_eq!(group_key("src/lib.rs", 2), "src/lib.rs");
+        assert_eq!(group_key("a/b/c.rs", 2), "a/b");
+        assert_eq!(group_key("a/b/c.rs", 5), "a/b/c.rs");
+        assert_eq!(group_key("README.md", 1), "README.md");
     }
 }

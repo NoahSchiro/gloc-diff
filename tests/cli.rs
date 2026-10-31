@@ -539,3 +539,37 @@ fn style_flag_picks_the_table_border_style() {
     let out = repo.gloc(&["--base", "main", "--style", "nonsense"]);
     assert_eq!(out.status.code(), Some(2));
 }
+
+#[test]
+fn depth_flag_rolls_files_up_into_directories() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a()\n", "base");
+    repo.commit("src/app.rs", "fn b()\n", "base");
+    repo.commit("README.md", "# gloc\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a()\nfn a2()\n", "grow");
+    repo.commit("src/app.rs", "fn b()\nfn b2()\n", "grow");
+    repo.commit("README.md", "# gloc\n# more\n", "grow");
+
+    // Depth 1: one row per top-level folder; the root file stands alone.
+    // Total churn is 3, one added line in each file, unchanged by the
+    // rollup.
+    let out = repo.gloc(&["--base", "main", "--depth", "1"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("README.md"), "table: {stdout}");
+    assert!(!stdout.contains("src/lib.rs"), "table: {stdout}");
+    assert!(!stdout.contains("src/app.rs"), "table: {stdout}");
+    let within = repo.gloc(&["--base", "main", "--depth", "1", "--max-total", "3"]);
+    assert!(within.status.success());
+    let over = repo.gloc(&["--base", "main", "--depth", "1", "--max-total", "2"]);
+    assert_eq!(over.status.code(), Some(1));
+
+    // Depth 0 has no meaning while --total-only does not exist yet.
+    let out = repo.gloc(&["--base", "main", "--depth", "0"]);
+    assert_eq!(out.status.code(), Some(2));
+}

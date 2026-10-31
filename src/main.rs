@@ -61,6 +61,10 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
     // lines came from, so old blobs are fetched from there.
     let merge_base = git::merge_base(&args.base, &args.head)?;
 
+    if args.depth.is_some_and(|depth| depth == 0) {
+        return Err("--depth must be at least 1".into());
+    }
+
     let mut counts = Vec::new();
     for file in &files {
         if !filters.keeps(&file.path) {
@@ -71,6 +75,10 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         let old_classes = classify_blob(file.old_path.as_deref(), old_text.as_deref());
         let new_classes = classify_blob(Some(file.path.as_str()), new_text.as_deref());
         counts.push(count::count_file(file, &old_classes, &new_classes));
+    }
+
+    if let Some(depth) = args.depth {
+        counts = count::rollup(counts, depth);
     }
 
     let total = count::total(&counts);
@@ -126,14 +134,14 @@ fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineCl
 }
 
 /// Print the churn table. `style` picks one of the tabled border presets.
-fn print_table(counts: &[FileCount<'_>], total: Buckets, style: TableStyle) {
+fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle) {
     let mut builder = Builder::new();
     builder.push_record([
         "file", "lang", "blank", "", "comment", "", "test", "", "source", "", "churn",
     ]);
     builder.push_record(["", "", "+", "-", "+", "-", "+", "-", "+", "-", ""]);
     for count in counts {
-        builder.push_record(count_row(count.path, count.lang, count.buckets));
+        builder.push_record(count_row(&count.path, count.lang, count.buckets));
     }
     builder.push_record(count_row("total", "", total));
 

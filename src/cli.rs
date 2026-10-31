@@ -51,6 +51,11 @@ pub struct Args {
     /// Border style of the churn table.
     #[arg(long, value_enum, default_value_t = TableStyle::Sharp)]
     pub style: TableStyle,
+
+    /// Provide a summary at this many directory levels instead
+    /// of one row per file.
+    #[arg(long, value_name = "N")]
+    pub depth: Option<usize>,
 }
 
 /// Border style of the churn table, one of the tabled presets.
