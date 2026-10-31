@@ -87,16 +87,24 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         print_table(&counts, total, args.style);
     }
 
-    if let Some(max_total) = args.max_total
-        && total.churn() > max_total
-    {
-        eprintln!(
-            "gloc: total churn {} exceeds --max-total {max_total}",
-            total.churn()
-        );
+    let failed = exceeded("src", total.source.churn(), args.max_src)
+        | exceeded("test", total.test.churn(), args.max_test)
+        | exceeded("total", total.churn(), args.max_total);
+    if failed {
         return Ok(ExitCode::FAILURE);
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// Report one exceeded churn gate on stderr.
+fn exceeded(name: &str, churn: u64, max: Option<u64>) -> bool {
+    match max {
+        Some(max) if churn > max => {
+            eprintln!("gloc: {name} churn {churn} exceeds --max-{name} {max}");
+            true
+        }
+        _ => false,
+    }
 }
 
 /// The old file version, when some hunk removes lines of it. Pure renames

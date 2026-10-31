@@ -20,6 +20,16 @@ pub struct Args {
     #[arg(long, default_value = "HEAD")]
     pub head: String,
 
+    /// Fail with exit code 1 when source churn (added + removed source
+    /// lines) exceeds this number.
+    #[arg(long)]
+    pub max_src: Option<u64>,
+
+    /// Fail with exit code 1 when test churn (added + removed test lines)
+    /// exceeds this number.
+    #[arg(long)]
+    pub max_test: Option<u64>,
+
     /// Fail with exit code 1 when total churn (added + removed lines)
     /// exceeds this number.
     #[arg(long)]

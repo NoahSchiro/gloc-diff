@@ -599,3 +599,48 @@ fn total_only_prints_the_repo_churn_as_a_single_number() {
     let out = repo.gloc(&["--base", "main", "--total-only", "--depth", "1"]);
     assert_eq!(out.status.code(), Some(2));
 }
+
+#[test]
+fn max_src_and_max_test_gate_their_buckets() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a()\n", "base");
+    repo.commit("tests/x.rs", "assert a()\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a()\nfn b()\nfn c()\n", "grow");
+    repo.commit(
+        "tests/x.rs",
+        "assert a()\nassert b()\nassert c()\nassert d()\n",
+        "grow",
+    );
+
+    // Source churn is 2, test churn is 3, and the gates are inclusive.
+    let within = repo.gloc(&["--base", "main", "--max-src", "2", "--max-test", "3"]);
+    assert!(
+        within.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&within.stderr)
+    );
+
+    let src_over = repo.gloc(&["--base", "main", "--max-src", "1"]);
+    assert_eq!(src_over.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&src_over.stderr).contains("max-src"),
+        "stderr: {}",
+        String::from_utf8_lossy(&src_over.stderr)
+    );
+
+    let test_over = repo.gloc(&["--base", "main", "--max-test", "2"]);
+    assert_eq!(test_over.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&test_over.stderr).contains("max-test"),
+        "stderr: {}",
+        String::from_utf8_lossy(&test_over.stderr)
+    );
+
+    // Every violated gate is reported, not just the first.
+    let both = repo.gloc(&["--base", "main", "--max-src", "1", "--max-test", "2"]);
+    assert_eq!(both.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&both.stderr);
+    assert!(stderr.contains("max-src"), "stderr: {stderr}");
+    assert!(stderr.contains("max-test"), "stderr: {stderr}");
+}
