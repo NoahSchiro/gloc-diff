@@ -5,10 +5,15 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+
+concurrency:
+  group: gloc-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  churn:
-    name: Gate the pull request
+  report:
+    name: Churn report
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,14 +28,55 @@ jobs:
         run: |
           # Without a tag this grabs the latest release; pin one (e.g.
           # `gh release download v0.1.0 ...`) for reproducible gates.
-          gh release download --repo "$GITHUB_REPOSITORY" \
+          gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" \
             --pattern 'gloc-x86_64-linux-musl.tar.gz' --clobber
           tar --extract --gzip --file gloc-x86_64-linux-musl.tar.gz
           chmod +x gloc
 
-      - name: Gate the pull request
+      - name: Build the report
         run: |
-          ./gloc --base "origin/${{ github.base_ref }}" \
-            --max-src 100 \
-            --max-test 100 \
-            --max-total 500
+          set +e
+          ./gloc --base "origin/${{ github.base_ref }}" --style markdown \
+            --max-src 100 --max-test 100 --max-total 500 \
+            > report.md 2> limits.txt
+          status=$?
+          set -e
+          if [ "$status" -ge 2 ]; then
+            cat limits.txt >&2
+            exit 1
+          fi
+          {
+            echo "<!-- gloc report: do not edit -->"
+            echo "## Churn report"
+            echo
+            cat report.md
+            echo
+            if [ "$status" -eq 1 ]; then
+              echo "> [!WARNING]"
+              echo "> This PR exceeds the churn limits. Consider scoping it down"
+              echo "> or splitting it into smaller PRs."
+              echo
+              echo '```'
+              cat limits.txt
+              echo '```'
+            else
+              echo "✅ Within churn limits."
+            fi
+          } > comment.md
+
+      - name: Post the report
+        # Fork PRs get a read-only token and cannot comment; the report is
+        # still visible in this run's log.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number="${{ github.event.pull_request.number }}"
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
+            --jq '.[] | select(.body | startswith("<!-- gloc report:")) | .id' | head -1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" \
+              -F body=@comment.md > /dev/null
+          else
+            gh pr comment "$number" --body-file comment.md
+          fi
