@@ -92,7 +92,7 @@ fn git<'a>(dir: &Path, args: impl IntoIterator<Item = &'a str> + std::fmt::Debug
 }
 
 #[test]
-fn counts_non_blank_churn_in_a_temp_repo() {
+fn unclassified_files_fall_back_to_non_blank_counting() {
     let repo = Repo::new();
     repo.commit("src/lib.rs", "fn a() {}\n\nfn b() {}\n", "base");
     repo.branch("feature");
@@ -108,16 +108,50 @@ fn counts_non_blank_churn_in_a_temp_repo() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    // Three lines added, one of them blank: churn counts 2.
     assert_eq!(
-        stdout,
+        String::from_utf8_lossy(&out.stdout),
         concat!(
-            "file          added  removed    churn\n",
-            "src/lib.rs        2        0        2\n",
-            "total             2        0        2\n",
+            "file        lang               blank            comment             test             source         churn\n",
+            "                                +        -        +        -        +        -        +        -\n",
+            "src/lib.rs  unclassified        1        0        0        0        0        0        2        0        3\n",
+            "total                           1        0        0        0        0        0        2        0        3\n",
         )
     );
+}
+
+#[test]
+fn stub_language_splits_source_and_test_churn() {
+    let repo = Repo::new();
+    repo.commit("src/lib.stub", "code a\ncode b\n", "base");
+    repo.commit("tests/lib.stub", "assert a\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.stub", "code a\ncode b\ncode c\n", "grow");
+    repo.commit("tests/lib.stub", "assert a\nassert b\n\nassert c\n", "grow");
+
+    // src/ is source churn; tests/ matches the stub language's test globs,
+    // so its non-blank lines are test churn and its blank line is blank churn.
+    let out = repo.gloc(&["--base", "main"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        concat!(
+            "file            lang       blank            comment             test             source         churn\n",
+            "                            +        -        +        -        +        -        +        -\n",
+            "src/lib.stub    stub        0        0        0        0        0        0        1        0        1\n",
+            "tests/lib.stub  stub        1        0        0        0        2        0        0        0        3\n",
+            "total                       1        0        0        0        2        0        1        0        4\n",
+        )
+    );
+
+    // The gate counts every bucket: churn is 4.
+    let over = repo.gloc(&["--base", "main", "--max-total", "3"]);
+    assert_eq!(over.status.code(), Some(1));
+    let within = repo.gloc(&["--base", "main", "--max-total", "4"]);
+    assert!(within.status.success());
 }
 
 #[test]
@@ -194,12 +228,23 @@ fn exclude_glob_drops_files_from_the_table_and_total() {
     assert_eq!(over.status.code(), Some(1));
 
     let out = repo.gloc(&["--base", "main", "--exclude", "**/*.lock"]);
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("src/lib.rs"), "table: {stdout}");
     assert!(!stdout.contains("Cargo.lock"), "table: {stdout}");
 
-    let within = repo.gloc(&["--base", "main", "--exclude", "**/*.lock", "--max-total", "2"]);
+    let within = repo.gloc(&[
+        "--base",
+        "main",
+        "--exclude",
+        "**/*.lock",
+        "--max-total",
+        "2",
+    ]);
     assert!(within.status.success());
 }
 
@@ -213,7 +258,11 @@ fn include_glob_acts_as_an_allowlist() {
     repo.commit("doc/guide.md", "# guide\n# more\n", "grow");
 
     let out = repo.gloc(&["--base", "main", "--include", "src/**"]);
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("src/lib.rs"), "table: {stdout}");
     assert!(!stdout.contains("doc/guide.md"), "table: {stdout}");

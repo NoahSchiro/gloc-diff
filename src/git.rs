@@ -32,7 +32,17 @@ pub fn diff_range(base: &str, head: &str) -> Result<String, GitError> {
     ])
 }
 
-/// Absolute path of the working tree root. 
+/// The best common ancestor of `base` and `head`.
+pub fn merge_base(base: &str, head: &str) -> Result<String, GitError> {
+    run(&["merge-base", base, head]).map(|sha| sha.trim().to_owned())
+}
+
+/// The content of one file version: `git show rev:path`.
+pub fn blob(rev: &str, path: &str) -> Result<String, GitError> {
+    run(&["show", &format!("{rev}:{path}")])
+}
+
+/// Absolute path of the working tree root.
 ///
 /// Many of the files we need are relative to this.
 /// - Diff output paths

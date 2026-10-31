@@ -37,8 +37,14 @@ impl FileOptions {
 /// Why `.gloc.toml` could not be turned into options.
 #[derive(Debug)]
 pub enum ConfigError {
-    Read { path: PathBuf, source: io::Error },
-    Parse { path: PathBuf, source: toml::de::Error },
+    Read {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Parse {
+        path: PathBuf,
+        source: toml::de::Error,
+    },
 }
 
 impl fmt::Display for ConfigError {
@@ -68,9 +74,7 @@ pub fn load(repo_root: &Path) -> Result<Options, ConfigError> {
     let path = repo_root.join(".gloc.toml");
     let text = match fs::read_to_string(&path) {
         Ok(text) => text,
-        Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            return Ok(Options::default())
-        }
+        Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(Options::default()),
         Err(source) => return Err(ConfigError::Read { path, source }),
     };
     toml::from_str::<FileOptions>(&text)

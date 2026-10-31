@@ -7,10 +7,12 @@ use std::collections::{BTreeSet, HashSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
+use globset::GlobSet;
 use ignore::Match;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use regex::RegexSet;
+
+use crate::globs;
 
 /// Raw filtering options, before compilation. The CLI and `.gloc.toml` both
 /// produce one of these.
@@ -32,11 +34,7 @@ impl Options {
     /// Combine CLI and config-file options per option.
     pub fn merge(cli: Options, file: Options) -> Options {
         fn pick(cli: Vec<String>, file: Vec<String>) -> Vec<String> {
-            if cli.is_empty() {
-                file
-            } else {
-                cli
-            }
+            if cli.is_empty() { file } else { cli }
         }
         Options {
             include: pick(cli.include, file.include),
@@ -76,25 +74,29 @@ pub struct Filters {
 /// Why filter options could not be compiled.
 #[derive(Debug)]
 pub enum FilterError {
-    Glob {
-        pattern: String,
-        source: globset::Error,
+    Globs {
+        source: globs::GlobError,
     },
-    GlobSet { source: globset::Error },
-    Regex { source: regex::Error },
-    Gitignore { path: PathBuf, source: ignore::Error },
+    Regex {
+        source: regex::Error,
+    },
+    Gitignore {
+        path: PathBuf,
+        source: ignore::Error,
+    },
 }
 
 impl fmt::Display for FilterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FilterError::Glob { pattern, source } => {
-                write!(f, "invalid glob {pattern:?}: {source}")
-            }
-            FilterError::GlobSet { source } => write!(f, "failed to build glob set: {source}"),
+            FilterError::Globs { source } => write!(f, "{source}"),
             FilterError::Regex { source } => write!(f, "invalid regex: {source}"),
             FilterError::Gitignore { path, source } => {
-                write!(f, "cannot read ignore rules from {}: {source}", path.display())
+                write!(
+                    f,
+                    "cannot read ignore rules from {}: {source}",
+                    path.display()
+                )
             }
         }
     }
@@ -103,8 +105,7 @@ impl fmt::Display for FilterError {
 impl std::error::Error for FilterError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FilterError::Glob { source, .. } => Some(source),
-            FilterError::GlobSet { source } => Some(source),
+            FilterError::Globs { source } => Some(source),
             FilterError::Regex { source } => Some(source),
             FilterError::Gitignore { source, .. } => Some(source),
         }
@@ -174,47 +175,15 @@ impl Filters {
     }
 }
 
-/// Compile include/exclude globs into one set. Patterns are gitignore-style:
-/// see [`glob_variants`]. An empty pattern matches nothing and is skipped.
+/// Compile include/exclude globs into one set, gitignore-style.
 fn compile_globs(patterns: &[String]) -> Result<GlobSet, FilterError> {
-    let mut builder = GlobSetBuilder::new();
-    for pattern in patterns {
-        let pattern = pattern.trim();
-        if pattern.is_empty() {
-            continue;
-        }
-        let globs = glob_variants(pattern)
-            .map_err(|source| FilterError::Glob { pattern: pattern.to_owned(), source })?;
-        for glob in globs {
-            builder.add(glob);
-        }
-    }
-    builder.build().map_err(|source| FilterError::GlobSet { source })
+    let patterns: Vec<&str> = patterns.iter().map(String::as_str).collect();
+    globs::compile(&patterns).map_err(|source| FilterError::Globs { source })
 }
 
 /// Compile include/exclude regexes.
 fn compile_regexes(patterns: &[String]) -> Result<RegexSet, FilterError> {
     RegexSet::new(patterns).map_err(|source| FilterError::Regex { source })
-}
-
-/// Compile one gitignore-style glob.
-fn glob_variants(pattern: &str) -> Result<Vec<Glob>, globset::Error> {
-    let anchored = pattern.contains('/');
-    let mut normalized = pattern.strip_prefix('/').unwrap_or(pattern).to_owned();
-    if normalized.ends_with('/') {
-        normalized.push_str("**");
-    }
-    if !anchored {
-        normalized.insert_str(0, "**/");
-    }
-    Ok(vec![
-        GlobBuilder::new(&normalized).literal_separator(true).build()?,
-        // The contents variant: `**` matches zero components, so it also
-        // covers the matched directory itself.
-        GlobBuilder::new(&format!("{normalized}/**"))
-            .literal_separator(true)
-            .build()?,
-    ])
 }
 
 /// Prioritize `.git/info/exclude`, then every relevant `.gitignore` from the root
@@ -241,12 +210,19 @@ fn load_gitignores(
 fn load_gitignore(dir: &Path, file: &Path) -> Result<GitignoreSource, FilterError> {
     let mut builder = GitignoreBuilder::new(dir);
     if let Some(source) = builder.add(file) {
-        return Err(FilterError::Gitignore { path: file.to_owned(), source });
+        return Err(FilterError::Gitignore {
+            path: file.to_owned(),
+            source,
+        });
     }
-    let matcher = builder
-        .build()
-        .map_err(|source| FilterError::Gitignore { path: file.to_owned(), source })?;
-    Ok(GitignoreSource { dir: dir.to_owned(), matcher })
+    let matcher = builder.build().map_err(|source| FilterError::Gitignore {
+        path: file.to_owned(),
+        source,
+    })?;
+    Ok(GitignoreSource {
+        dir: dir.to_owned(),
+        matcher,
+    })
 }
 
 /// Directories whose `.gitignore` may apply to a changed file. Every
@@ -270,7 +246,12 @@ mod tests {
     use std::fs;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    fn opts(include: &[&str], exclude: &[&str], include_re: &[&str], exclude_re: &[&str]) -> Options {
+    fn opts(
+        include: &[&str],
+        exclude: &[&str],
+        include_re: &[&str],
+        exclude_re: &[&str],
+    ) -> Options {
         Options {
             include: include.iter().map(|s| s.to_string()).collect(),
             exclude: exclude.iter().map(|s| s.to_string()).collect(),
@@ -288,7 +269,12 @@ mod tests {
     fn compile_for_paths(options: &Options, root: &Path, paths: &[&str]) -> Filters {
         let dirs: BTreeSet<PathBuf> = paths
             .iter()
-            .map(|path| Path::new(path).parent().expect("test path has a parent").to_owned())
+            .map(|path| {
+                Path::new(path)
+                    .parent()
+                    .expect("test path has a parent")
+                    .to_owned()
+            })
             .collect();
         Filters::compile(options, root, &dirs).expect("filters compile")
     }
@@ -420,7 +406,11 @@ mod tests {
     fn gitignore_rules_drop_tracked_files() {
         let root = TempRoot::new();
         root.write(".gitignore", "generated*\n*.log\n");
-        let filters = compile_for_paths(&opts(&[], &[], &[], &[]), root.path(), &["src/generated.rs"]);
+        let filters = compile_for_paths(
+            &opts(&[], &[], &[], &[]),
+            root.path(),
+            &["src/generated.rs"],
+        );
         assert!(filters.keeps("src/main.rs"));
         assert!(!filters.keeps("generated.txt"));
         assert!(!filters.keeps("src/generated.rs"));
@@ -456,8 +446,7 @@ mod tests {
         let root = TempRoot::new();
         root.write(".gitignore", "*.log\n");
         root.write("sub/.gitignore", "!keep.log\n");
-        let filters =
-            compile_for_paths(&opts(&[], &[], &[], &[]), root.path(), &["sub/keep.log"]);
+        let filters = compile_for_paths(&opts(&[], &[], &[], &[]), root.path(), &["sub/keep.log"]);
         assert!(filters.keeps("sub/keep.log"));
         assert!(!filters.keeps("sub/other.log"));
         assert!(!filters.keeps("top.log"));
@@ -485,4 +474,3 @@ mod tests {
         assert!(filters.keeps("src/main.rs"));
     }
 }
-

@@ -2,6 +2,8 @@
 //! Diff text comes in, per-file hunks out.
 //!
 //! It is useful to look at the output of git diff -U0 to see what we are parsing:
+//!
+//! ```text
 //! --- a/ui/src/App.css
 //! +++ b/ui/src/App.css
 //! @@ -4,0 +5,74 @@
@@ -9,15 +11,18 @@
 //! +.debug-panel {
 //! +  position: fixed;
 //! +  top: 10px;
-//! +  color: #1c1c1c;
+//! -  color: #1c1c1c;
 //! +  text-align: left;
 //! +  user-select: none;
 //! +}
+//! ```
+//!
 //! ... and so on
 
 /// One file's changes.
 pub struct FileDiff<'a> {
-    pub path: String, //+++/--- header
+    pub path: String,             // new file path
+    pub old_path: Option<String>, //old file path (if renamed)
     pub is_binary: bool,
     pub hunks: Vec<Hunk<'a>>,
 }
@@ -25,7 +30,6 @@ pub struct FileDiff<'a> {
 /// One `@@` hunk: where each version's lines start, how many lines the
 /// header claims for each side, and the content lines with their
 /// `-`/`+` prefix stripped.
-#[allow(dead_code)]
 pub struct Hunk<'a> {
     pub old_start: u64,
     pub old_lines: u64,
@@ -58,10 +62,8 @@ pub fn parse_diff(diff_text: &str) -> Vec<FileDiff<'_>> {
 
         if let Some(rest) = line.strip_prefix("diff --git ") {
             close_hunk(&mut hunk, &mut section);
-            if let Some(section) = section.take() {
-                if let Some(file) = section.into_file() {
-                    files.push(file);
-                }
+            if let Some(file) = section.take().and_then(Section::into_file) {
+                files.push(file);
             }
             section = Some(Section::from_diff_line(rest));
             continue;
@@ -91,10 +93,8 @@ pub fn parse_diff(diff_text: &str) -> Vec<FileDiff<'_>> {
     }
 
     close_hunk(&mut hunk, &mut section);
-    if let Some(section) = section.take() {
-        if let Some(file) = section.into_file() {
-            files.push(file);
-        }
+    if let Some(file) = section.take().and_then(Section::into_file) {
+        files.push(file);
     }
     files
 }
@@ -127,20 +127,25 @@ impl<'a> Section<'a> {
         }
     }
 
-    /// The head-side path: the `+++ ` path wins, then the rename target, then
-    /// the old path (deletions), then the rename source, then the raw
-    /// `diff --git` operands (mode-only changes). Sections with no recoverable
-    /// path never have hunks, so dropping them loses no churn.
+    /// The head-side path (`path`) and old-side path (`old_path`): the
+    /// `+++ ` path wins for the head side, the `--- ` path for the old side,
+    /// then the rename target and source, then the raw `diff --git` operands
+    /// (mode-only changes). Sections with no recoverable head-side path never
+    /// have hunks, so dropping them loses no churn.
     fn into_file(self) -> Option<FileDiff<'a>> {
+        let old_path = self
+            .old_path
+            .or(self.rename_from)
+            .or_else(|| self.diff_line_old.clone());
         let path = self
             .new_path
             .or(self.rename_to)
-            .or(self.old_path)
-            .or(self.rename_from)
+            .or_else(|| old_path.clone())
             .or(self.diff_line_new)
             .or(self.diff_line_old)?;
         Some(FileDiff {
             path,
+            old_path,
             is_binary: self.is_binary,
             hunks: self.hunks,
         })
@@ -185,10 +190,10 @@ fn try_consume_hunk_line<'a>(open: &mut OpenHunk<'a>, line: &'a str) -> bool {
 }
 
 fn close_hunk<'a>(hunk: &mut Option<OpenHunk<'a>>, section: &mut Option<Section<'a>>) {
-    if let Some(open) = hunk.take() {
-        if let Some(section) = section.as_mut() {
-            section.hunks.push(open.hunk);
-        }
+    if let Some(open) = hunk.take()
+        && let Some(section) = section.as_mut()
+    {
+        section.hunks.push(open.hunk);
     }
 }
 
@@ -202,17 +207,18 @@ fn parse_hunk_header<'a>(rest: &str) -> Option<OpenHunk<'a>> {
     let (new_start, rest) = take_u64(rest)?;
     let (new_lines, rest) = take_opt_count(rest);
     rest.strip_prefix(" @@")?;
+    let hunk = Hunk {
+        old_start,
+        old_lines,
+        new_start,
+        new_lines,
+        added: Vec::new(),
+        removed: Vec::new(),
+    };
     Some(OpenHunk {
-        hunk: Hunk {
-            old_start,
-            old_lines,
-            new_start,
-            new_lines,
-            added: Vec::new(),
-            removed: Vec::new(),
-        },
-        remaining_old: old_lines,
-        remaining_new: new_lines,
+        remaining_old: hunk.old_lines,
+        remaining_new: hunk.new_lines,
+        hunk,
     })
 }
 
