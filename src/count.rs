@@ -148,7 +148,7 @@ pub fn total(counts: &[FileCount]) -> Buckets {
 }
 
 /// Roll per-file counts up into one row per path prefix at `depth`.
-/// 
+///
 /// Directory rows carry no language. Rows are sorted by path.
 pub fn rollup(counts: Vec<FileCount>, depth: usize) -> Vec<FileCount> {
     let mut groups: BTreeMap<String, FileCount> = BTreeMap::new();

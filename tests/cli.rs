@@ -573,3 +573,29 @@ fn depth_flag_rolls_files_up_into_directories() {
     let out = repo.gloc(&["--base", "main", "--depth", "0"]);
     assert_eq!(out.status.code(), Some(2));
 }
+
+#[test]
+fn total_only_prints_the_repo_churn_as_a_single_number() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a()\n", "base");
+    repo.commit("README.md", "# gloc\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a()\nfn a2()\n", "grow");
+    repo.commit("README.md", "# gloc\n# more\n", "grow");
+
+    let out = repo.gloc(&["--base", "main", "--total-only"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "2");
+
+    // The gate still applies.
+    let over = repo.gloc(&["--base", "main", "--total-only", "--max-total", "1"]);
+    assert_eq!(over.status.code(), Some(1));
+
+    // --total-only and --depth are two answers to the same question.
+    let out = repo.gloc(&["--base", "main", "--total-only", "--depth", "1"]);
+    assert_eq!(out.status.code(), Some(2));
+}

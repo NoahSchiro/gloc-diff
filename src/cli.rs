@@ -56,6 +56,10 @@ pub struct Args {
     /// of one row per file.
     #[arg(long, value_name = "N")]
     pub depth: Option<usize>,
+
+    /// Only print the total churn for the entire repo.
+    #[arg(long, conflicts_with = "depth")]
+    pub total_only: bool,
 }
 
 /// Border style of the churn table, one of the tabled presets.

@@ -77,12 +77,15 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         counts.push(count::count_file(file, &old_classes, &new_classes));
     }
 
-    if let Some(depth) = args.depth {
-        counts = count::rollup(counts, depth);
-    }
-
     let total = count::total(&counts);
-    print_table(&counts, total, args.style);
+    if args.total_only {
+        println!("{}", total.churn());
+    } else {
+        if let Some(depth) = args.depth {
+            counts = count::rollup(counts, depth);
+        }
+        print_table(&counts, total, args.style);
+    }
 
     if let Some(max_total) = args.max_total
         && total.churn() > max_total
