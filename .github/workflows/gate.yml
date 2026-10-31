@@ -1,0 +1,36 @@
+name: gloc
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  churn:
+    name: Gate the pull request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gloc diffs from the merge-base with the base branch, so the
+          # checkout needs full history for that merge-base to exist.
+          fetch-depth: 0
+
+      - name: Download gloc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Without a tag this grabs the latest release; pin one (e.g.
+          # `gh release download v0.1.0 ...`) for reproducible gates.
+          gh release download --repo "$GITHUB_REPOSITORY" \
+            --pattern 'gloc-x86_64-linux-musl.tar.gz' --clobber
+          tar --extract --gzip --file gloc-x86_64-linux-musl.tar.gz
+          chmod +x gloc
+
+      - name: Gate the pull request
+        run: |
+          ./gloc --base "origin/${{ github.base_ref }}" \
+            --max-src 100 \
+            --max-test 100 \
+            --max-total 500

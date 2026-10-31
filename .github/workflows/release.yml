@@ -1,0 +1,51 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  musl:
+    name: Static musl binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install the musl toolchain
+        run: sudo apt-get update && sudo apt-get install -y musl-tools musl-dev
+
+      - name: Test
+        run: cargo test --all-features
+
+      - name: Build
+        env:
+          # cc-rs would find musl-gcc on its own for this target; pin it
+          # so the tree-sitter C code is always compiled against musl.
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: cargo build --release --all-features --target x86_64-unknown-linux-musl
+
+      - name: Check the binary is static
+        run: file --brief target/x86_64-unknown-linux-musl/release/gloc | grep --quiet 'statically linked'
+
+      - name: Package
+        run: |
+          tar --create --gzip --file gloc-x86_64-linux-musl.tar.gz \
+            --directory target/x86_64-unknown-linux-musl/release gloc
+          sha256sum gloc-x86_64-linux-musl.tar.gz > SHA256SUMS
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            gloc-x86_64-linux-musl.tar.gz
+            SHA256SUMS
+          fail_on_unmatched_files: true
+          generate_release_notes: true

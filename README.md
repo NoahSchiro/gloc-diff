@@ -35,3 +35,11 @@ gloc --base HEAD~1
 - [ ] C / C++
 - [ ] Java
 - [ ] Go
+
+## CI
+
+`.github/workflows/gate.yml` gates this repo's pull requests with the latest
+released binary. Copy it into your repo and tune the limits. The checkout
+needs `fetch-depth: 0` so gloc can find the merge-base with the base branch.
+Releases are cut by pushing a `v*` tag, which builds the static musl binary
+(`.github/workflows/release.yml`).
