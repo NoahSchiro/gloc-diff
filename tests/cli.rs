@@ -296,6 +296,32 @@ fn config_file_applies_and_cli_overrides_per_option() {
 }
 
 #[test]
+fn config_file_sets_the_churn_limits_and_cli_overrides_them() {
+    let repo = Repo::new();
+    repo.commit(".gloc.toml", "max-total = 1\n", "config");
+    repo.commit("a.txt", "one\ntwo\n", "base");
+    repo.branch("feature");
+    repo.commit("a.txt", "one\ntwo\nthree\nfour\n", "grow");
+
+    // The file's limit alone fails the gate.
+    let over = repo.gloc(&["--base", "main"]);
+    assert_eq!(over.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&over.stderr).contains("max-total"),
+        "stderr: {}",
+        String::from_utf8_lossy(&over.stderr)
+    );
+
+    // A looser CLI limit overrides the file's.
+    let looser = repo.gloc(&["--base", "main", "--max-total", "10"]);
+    assert!(
+        looser.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&looser.stderr)
+    );
+}
+
+#[test]
 fn gitignore_skips_tracked_but_ignored_files() {
     let repo = Repo::new();
     repo.commit(".gitignore", "secret*\n", "ignore rules");

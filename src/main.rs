@@ -12,6 +12,7 @@ mod filter;
 mod git;
 mod globs;
 mod lang;
+mod limits;
 mod syntax;
 
 use std::collections::BTreeSet;
@@ -49,13 +50,15 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let files = diff::parse_diff(&diff_text);
 
     let repo_root = git::toplevel()?;
-    let options = filter::Options::merge(args.filter_options(), config::load(&repo_root)?);
+    let config = config::load(&repo_root)?;
+    let filters = filter::Filters::merge(args.filters(), config.filters);
+    let limits = limits::Limits::merge(args.limits(), config.limits);
     let changed_dirs: BTreeSet<PathBuf> = files
         .iter()
         .filter_map(|file| Path::new(&file.path).parent())
         .map(Path::to_path_buf)
         .collect();
-    let filters = filter::Filters::compile(&options, &repo_root, &changed_dirs)?;
+    let matchers = filter::Matchers::compile(&filters, &repo_root, &changed_dirs)?;
 
     // The old side of `base...head` is the merge-base: that is where removed
     // lines came from, so old blobs are fetched from there.
@@ -67,7 +70,7 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
 
     let mut counts = Vec::new();
     for file in &files {
-        if !filters.keeps(&file.path) {
+        if !matchers.keeps(&file.path) {
             continue;
         }
         let old_text = old_side_text(file, &merge_base)?;
@@ -87,9 +90,9 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         print_table(&counts, total, args.style, args.depth);
     }
 
-    let failed = exceeded("src", total.source.churn(), args.max_src)
-        | exceeded("test", total.test.churn(), args.max_test)
-        | exceeded("total", total.churn(), args.max_total);
+    let failed = exceeded("src", total.source.churn(), limits.max_src)
+        | exceeded("test", total.test.churn(), limits.max_test)
+        | exceeded("total", total.churn(), limits.max_total);
     if failed {
         return Ok(ExitCode::FAILURE);
     }
@@ -150,7 +153,7 @@ fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle, depth: O
     builder.push_record([
         // If we are showing directory summaries, then this
         // column is not 'file'
-        if depth.is_some() {""} else {"file"},
+        if depth.is_some() { "" } else { "file" },
         "lang",
         "blank +",
         "blank -",

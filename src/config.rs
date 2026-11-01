@@ -9,9 +9,19 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::filter::Options;
+use crate::filter::Filters;
+use crate::limits::Limits;
 
-/// Options as written in `.gloc.toml`. Exact same as CLI flags.
+/// Everything one `.gloc.toml` can set.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Config {
+    /// Which files count.
+    pub filters: Filters,
+    /// How much churn is allowed.
+    pub limits: Limits,
+}
+
+/// Filters as written in `.gloc.toml`. Exact same as CLI flags.
 #[derive(Deserialize, Debug, Default)]
 #[serde(default, deny_unknown_fields, rename_all = "kebab-case")]
 struct FileOptions {
@@ -20,21 +30,31 @@ struct FileOptions {
     include_re: Vec<String>,
     exclude_re: Vec<String>,
     no_gitignore: bool,
+    max_src: Option<u64>,
+    max_test: Option<u64>,
+    max_total: Option<u64>,
 }
 
 impl FileOptions {
-    fn into_options(self) -> Options {
-        Options {
-            include: self.include,
-            exclude: self.exclude,
-            include_re: self.include_re,
-            exclude_re: self.exclude_re,
-            no_gitignore: self.no_gitignore,
+    fn into_config(self) -> Config {
+        Config {
+            filters: Filters {
+                include: self.include,
+                exclude: self.exclude,
+                include_re: self.include_re,
+                exclude_re: self.exclude_re,
+                no_gitignore: self.no_gitignore,
+            },
+            limits: Limits {
+                max_src: self.max_src,
+                max_test: self.max_test,
+                max_total: self.max_total,
+            },
         }
     }
 }
 
-/// Why `.gloc.toml` could not be turned into options.
+/// Why `.gloc.toml` could not be turned into a `Config`.
 #[derive(Debug)]
 pub enum ConfigError {
     Read {
@@ -70,15 +90,15 @@ impl std::error::Error for ConfigError {
 }
 
 /// Read `.gloc.toml` from the repo root.
-pub fn load(repo_root: &Path) -> Result<Options, ConfigError> {
+pub fn load(repo_root: &Path) -> Result<Config, ConfigError> {
     let path = repo_root.join(".gloc.toml");
     let text = match fs::read_to_string(&path) {
         Ok(text) => text,
-        Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(Options::default()),
+        Err(source) if source.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
         Err(source) => return Err(ConfigError::Read { path, source }),
     };
     toml::from_str::<FileOptions>(&text)
-        .map(FileOptions::into_options)
+        .map(FileOptions::into_config)
         .map_err(|source| ConfigError::Parse { path, source })
 }
 
@@ -114,7 +134,15 @@ mod tests {
     #[test]
     fn missing_file_means_default_options() {
         let root = TempRoot::new();
-        assert_eq!(load(root.0.as_path()).unwrap(), Options::default());
+        assert_eq!(load(root.0.as_path()).unwrap(), Config::default());
+    }
+
+    #[test]
+    fn limits_default_to_unlimited() {
+        let root = TempRoot::new();
+        root.write(".gloc.toml", "include = [\"src/**\"]\n");
+        let config = load(root.0.as_path()).unwrap();
+        assert_eq!(config.limits, Limits::default());
     }
 
     #[test]
@@ -128,14 +156,20 @@ mod tests {
                 "include-re = [\"^lib\"]\n",
                 "exclude-re = [\"vend\"]\n",
                 "no-gitignore = true\n",
+                "max-src = 500\n",
+                "max-test = 400\n",
+                "max-total = 300\n",
             ),
         );
-        let options = load(root.0.as_path()).unwrap();
-        assert_eq!(options.include, ["src/**"]);
-        assert_eq!(options.exclude, ["**/*.lock"]);
-        assert_eq!(options.include_re, ["^lib"]);
-        assert_eq!(options.exclude_re, ["vend"]);
-        assert!(options.no_gitignore);
+        let config = load(root.0.as_path()).unwrap();
+        assert_eq!(config.filters.include, ["src/**"]);
+        assert_eq!(config.filters.exclude, ["**/*.lock"]);
+        assert_eq!(config.filters.include_re, ["^lib"]);
+        assert_eq!(config.filters.exclude_re, ["vend"]);
+        assert!(config.filters.no_gitignore);
+        assert_eq!(config.limits.max_src, Some(500));
+        assert_eq!(config.limits.max_test, Some(400));
+        assert_eq!(config.limits.max_total, Some(300));
     }
 
     #[test]

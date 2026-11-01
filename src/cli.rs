@@ -3,6 +3,7 @@
 use clap::{Parser, ValueEnum};
 
 use crate::filter;
+use crate::limits;
 
 /// Valid arguments to `gloc`
 ///
@@ -91,14 +92,23 @@ pub enum TableStyle {
 }
 
 impl Args {
-    /// The filter half of the arguments, in the shared option shape.
-    pub fn filter_options(&self) -> filter::Options {
-        filter::Options {
+    /// The filter half of the arguments.
+    pub fn filters(&self) -> filter::Filters {
+        filter::Filters {
             include: self.include.clone(),
             exclude: self.exclude.clone(),
             include_re: self.include_re.clone(),
             exclude_re: self.exclude_re.clone(),
             no_gitignore: self.no_gitignore,
+        }
+    }
+
+    /// The limit half of the arguments.
+    pub fn limits(&self) -> limits::Limits {
+        limits::Limits {
+            max_src: self.max_src,
+            max_test: self.max_test,
+            max_total: self.max_total,
         }
     }
 }

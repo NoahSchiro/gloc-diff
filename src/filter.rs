@@ -14,10 +14,10 @@ use regex::RegexSet;
 
 use crate::globs;
 
-/// Raw filtering options, before compilation. The CLI and `.gloc.toml` both
+/// Raw path filters, before compilation. The CLI and `.gloc.toml` both
 /// produce one of these.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct Options {
+pub struct Filters {
     /// Allowlist globs.
     pub include: Vec<String>,
     /// Blocklist globs.
@@ -30,13 +30,13 @@ pub struct Options {
     pub no_gitignore: bool,
 }
 
-impl Options {
-    /// Combine CLI and config-file options per option.
-    pub fn merge(cli: Options, file: Options) -> Options {
+impl Filters {
+    /// Combine CLI and config-file filters per filter.
+    pub fn merge(cli: Filters, file: Filters) -> Filters {
         fn pick(cli: Vec<String>, file: Vec<String>) -> Vec<String> {
             if cli.is_empty() { file } else { cli }
         }
-        Options {
+        Filters {
             include: pick(cli.include, file.include),
             exclude: pick(cli.exclude, file.exclude),
             include_re: pick(cli.include_re, file.include_re),
@@ -63,7 +63,7 @@ impl fmt::Debug for GitignoreSource {
 
 /// Compiled filters deciding which file paths count toward churn.
 #[derive(Debug)]
-pub struct Filters {
+pub struct Matchers {
     include_globs: GlobSet,
     include_regexes: RegexSet,
     exclude_globs: GlobSet,
@@ -71,7 +71,7 @@ pub struct Filters {
     gitignores: Vec<GitignoreSource>,
 }
 
-/// Why filter options could not be compiled.
+/// Why raw filters could not be compiled.
 #[derive(Debug)]
 pub enum FilterError {
     Globs {
@@ -112,19 +112,19 @@ impl std::error::Error for FilterError {
     }
 }
 
-impl Filters {
-    /// Compile options into filters.
+impl Matchers {
+    /// Compile raw filters into matchers.
     pub fn compile(
-        options: &Options,
+        filters: &Filters,
         repo_root: &Path,
         changed_dirs: &BTreeSet<PathBuf>,
-    ) -> Result<Filters, FilterError> {
-        Ok(Filters {
-            include_globs: compile_globs(&options.include)?,
-            include_regexes: compile_regexes(&options.include_re)?,
-            exclude_globs: compile_globs(&options.exclude)?,
-            exclude_regexes: compile_regexes(&options.exclude_re)?,
-            gitignores: if options.no_gitignore {
+    ) -> Result<Matchers, FilterError> {
+        Ok(Matchers {
+            include_globs: compile_globs(&filters.include)?,
+            include_regexes: compile_regexes(&filters.include_re)?,
+            exclude_globs: compile_globs(&filters.exclude)?,
+            exclude_regexes: compile_regexes(&filters.exclude_re)?,
+            gitignores: if filters.no_gitignore {
                 Vec::new()
             } else {
                 load_gitignores(repo_root, changed_dirs)?
@@ -251,8 +251,8 @@ mod tests {
         exclude: &[&str],
         include_re: &[&str],
         exclude_re: &[&str],
-    ) -> Options {
-        Options {
+    ) -> Filters {
+        Filters {
             include: include.iter().map(|s| s.to_string()).collect(),
             exclude: exclude.iter().map(|s| s.to_string()).collect(),
             include_re: include_re.iter().map(|s| s.to_string()).collect(),
@@ -262,11 +262,11 @@ mod tests {
     }
 
     /// A root that does not exist, so no ignore files are ever found.
-    fn bare_filters(options: &Options, paths: &[&str]) -> Filters {
-        compile_for_paths(options, Path::new("/gloc-test-root-does-not-exist"), paths)
+    fn bare_filters(filters: &Filters, paths: &[&str]) -> Matchers {
+        compile_for_paths(filters, Path::new("/gloc-test-root-does-not-exist"), paths)
     }
 
-    fn compile_for_paths(options: &Options, root: &Path, paths: &[&str]) -> Filters {
+    fn compile_for_paths(filters: &Filters, root: &Path, paths: &[&str]) -> Matchers {
         let dirs: BTreeSet<PathBuf> = paths
             .iter()
             .map(|path| {
@@ -276,11 +276,11 @@ mod tests {
                     .to_owned()
             })
             .collect();
-        Filters::compile(options, root, &dirs).expect("filters compile")
+        Matchers::compile(filters, root, &dirs).expect("filters compile")
     }
 
-    fn kept(options: &Options, path: &str) -> bool {
-        bare_filters(options, &[path]).keeps(path)
+    fn kept(filters: &Filters, path: &str) -> bool {
+        bare_filters(filters, &[path]).keeps(path)
     }
 
     /// A throwaway directory under the OS temp dir, removed on drop.
@@ -315,78 +315,78 @@ mod tests {
 
     #[test]
     fn excludes_beat_includes() {
-        let options = opts(&["**/*.rs"], &["tests/**"], &[], &[]);
-        assert!(kept(&options, "src/main.rs"));
-        assert!(!kept(&options, "tests/cli.rs"));
-        assert!(!kept(&options, "README.md"));
+        let filters = opts(&["**/*.rs"], &["tests/**"], &[], &[]);
+        assert!(kept(&filters, "src/main.rs"));
+        assert!(!kept(&filters, "tests/cli.rs"));
+        assert!(!kept(&filters, "README.md"));
     }
 
     #[test]
     fn include_acts_as_an_allowlist() {
-        let options = opts(&["src/**"], &[], &[], &[]);
-        assert!(kept(&options, "src/main.rs"));
-        assert!(!kept(&options, "doc/guide.md"));
-        assert!(!kept(&options, "main.rs"));
+        let filters = opts(&["src/**"], &[], &[], &[]);
+        assert!(kept(&filters, "src/main.rs"));
+        assert!(!kept(&filters, "doc/guide.md"));
+        assert!(!kept(&filters, "main.rs"));
     }
 
     #[test]
     fn include_globs_and_regexes_are_unioned() {
-        let options = opts(&["src/**"], &[], &["^lib/"], &[]);
-        assert!(kept(&options, "src/main.rs"));
-        assert!(kept(&options, "lib/old.rs"));
-        assert!(!kept(&options, "doc/guide.md"));
+        let filters = opts(&["src/**"], &[], &["^lib/"], &[]);
+        assert!(kept(&filters, "src/main.rs"));
+        assert!(kept(&filters, "lib/old.rs"));
+        assert!(!kept(&filters, "doc/guide.md"));
     }
 
     #[test]
     fn exclude_globs_and_regexes_are_unioned() {
-        let options = opts(&[], &["**/*.lock"], &[], &["vendor"]);
-        assert!(!kept(&options, "Cargo.lock"));
-        assert!(!kept(&options, "a/b/Cargo.lock"));
-        assert!(!kept(&options, "third_party/vendor/x.rs"));
-        assert!(kept(&options, "src/main.rs"));
+        let filters = opts(&[], &["**/*.lock"], &[], &["vendor"]);
+        assert!(!kept(&filters, "Cargo.lock"));
+        assert!(!kept(&filters, "a/b/Cargo.lock"));
+        assert!(!kept(&filters, "third_party/vendor/x.rs"));
+        assert!(kept(&filters, "src/main.rs"));
     }
 
     #[test]
     fn basename_globs_match_at_any_depth() {
-        let options = opts(&[], &["*.lock"], &[], &[]);
-        assert!(!kept(&options, "Cargo.lock"));
-        assert!(!kept(&options, "a/b/Cargo.lock"));
-        assert!(kept(&options, "a/b/lock"));
+        let filters = opts(&[], &["*.lock"], &[], &[]);
+        assert!(!kept(&filters, "Cargo.lock"));
+        assert!(!kept(&filters, "a/b/Cargo.lock"));
+        assert!(kept(&filters, "a/b/lock"));
     }
 
     #[test]
     fn anchored_globs_stay_at_the_root() {
-        let options = opts(&[], &["tests/**"], &[], &[]);
-        assert!(!kept(&options, "tests/cli.rs"));
-        assert!(kept(&options, "a/tests/cli.rs"));
+        let filters = opts(&[], &["tests/**"], &[], &[]);
+        assert!(!kept(&filters, "tests/cli.rs"));
+        assert!(kept(&filters, "a/tests/cli.rs"));
     }
 
     #[test]
     fn directory_patterns_cover_their_contents() {
-        let options = opts(&[], &["build"], &[], &[]);
-        assert!(!kept(&options, "build/out.o"));
-        assert!(!kept(&options, "a/build/out.o"));
-        assert!(kept(&options, "a/building/out.o"));
+        let filters = opts(&[], &["build"], &[], &[]);
+        assert!(!kept(&filters, "build/out.o"));
+        assert!(!kept(&filters, "a/build/out.o"));
+        assert!(kept(&filters, "a/building/out.o"));
     }
 
     #[test]
     fn regexes_search_the_whole_path() {
-        let options = opts(&[], &[], &[], &["^src/gen/"]);
-        assert!(!kept(&options, "src/gen/old.rs"));
-        assert!(kept(&options, "src/app/gen.rs"));
+        let filters = opts(&[], &[], &[], &["^src/gen/"]);
+        assert!(!kept(&filters, "src/gen/old.rs"));
+        assert!(kept(&filters, "src/app/gen.rs"));
     }
 
     #[test]
     fn cli_lists_replace_config_lists_per_option() {
         let cli = opts(&["src/**"], &[], &[], &[]);
-        let file = Options {
+        let file = Filters {
             include: vec!["docs/**".into()],
             exclude: vec!["**/*.lock".into()],
             include_re: vec!["^lib".into()],
             exclude_re: vec!["vend".into()],
             no_gitignore: true,
         };
-        let merged = Options::merge(cli, file);
+        let merged = Filters::merge(cli, file);
         assert_eq!(merged.include, ["src/**"]);
         assert_eq!(merged.exclude, ["**/*.lock"]);
         assert_eq!(merged.include_re, ["^lib"]);
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn config_applies_when_the_cli_is_silent() {
-        let merged = Options::merge(Options::default(), opts(&["a"], &["b"], &[], &[]));
+        let merged = Filters::merge(Filters::default(), opts(&["a"], &["b"], &[], &[]));
         assert_eq!(merged.include, ["a"]);
         assert_eq!(merged.exclude, ["b"]);
         assert!(!merged.no_gitignore);
@@ -421,9 +421,9 @@ mod tests {
     fn gitignore_can_be_disabled() {
         let root = TempRoot::new();
         root.write(".gitignore", "secret*\n");
-        let mut options = opts(&[], &[], &[], &[]);
-        options.no_gitignore = true;
-        let filters = compile_for_paths(&options, root.path(), &["secret.txt"]);
+        let mut filters = opts(&[], &[], &[], &[]);
+        filters.no_gitignore = true;
+        let filters = compile_for_paths(&filters, root.path(), &["secret.txt"]);
         assert!(filters.keeps("secret.txt"));
     }
 
