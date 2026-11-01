@@ -84,7 +84,7 @@ fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
         if let Some(depth) = args.depth {
             counts = count::rollup(counts, depth);
         }
-        print_table(&counts, total, args.style);
+        print_table(&counts, total, args.style, args.depth);
     }
 
     let failed = exceeded("src", total.source.churn(), args.max_src)
@@ -145,10 +145,12 @@ fn classify_blob(path: Option<&str>, text: Option<&str>) -> Vec<classify::LineCl
 }
 
 /// Print the churn table. `style` picks one of the tabled border presets.
-fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle) {
+fn print_table(counts: &[FileCount], total: Buckets, style: TableStyle, depth: Option<usize>) {
     let mut builder = Builder::new();
     builder.push_record([
-        "file",
+        // If we are showing directory summaries, then this
+        // column is not 'file'
+        if depth.is_some() {""} else {"file"},
         "lang",
         "blank +",
         "blank -",
