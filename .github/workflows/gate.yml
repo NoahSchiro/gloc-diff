@@ -35,7 +35,7 @@ jobs:
         run: |
           set +e
           ./gloc --base "origin/${{ github.base_ref }}" --style markdown \
-            --max-src 100 --max-test 100 --max-total 500 \
+            --depth 1 --max-src 1000 \
             > report.md 2> limits.txt
           status=$?
           set -e
@@ -51,8 +51,7 @@ jobs:
             echo
             if [ "$status" -eq 1 ]; then
               echo "> [!WARNING]"
-              echo "> This PR exceeds the churn limits. Consider scoping it down"
-              echo "> or splitting it into smaller PRs."
+              echo "> This PR exceeds the churn limits. Consider scoping it down or splitting it into smaller PRs."
               echo
               echo '```'
               cat limits.txt
