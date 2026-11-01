@@ -27,6 +27,19 @@ gloc --base HEAD~1
 - Per-project `.gloc.toml` config.
 - Return non-zero exit code if too many lines are added.
 
+## Config
+
+`.gloc.toml` at the repo root accepts the same options as the flags, and
+flags override it:
+
+```toml
+include = ["src/**", "crates/*/src/**"]
+exclude = ["**/generated/**"]
+max-src = 500
+max-test = 300
+max-total = 1000
+```
+
 ## Supported languages
 - [x] Rust
 - [ ] Python
