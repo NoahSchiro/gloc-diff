@@ -18,6 +18,7 @@ fn is_even(num: i64) -> bool {
         14 => true,
         15 => false,
         16 => true,
+        17 => false,
         _ => todo!()
     }
 }
