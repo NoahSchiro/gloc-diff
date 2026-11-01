@@ -41,7 +41,26 @@ fn is_even(num: i64) -> bool {
         37 => false,
         38 => true,
         39 => false,
- 
+        40 => true,
+        41 => false,
+        42 => true,
+        43 => false,
+        44 => true,
+        45 => false,
+        46 => true,
+        47 => false,
+        48 => true,
+        49 => false,
+        50 => true,
+        51 => false,
+        52 => true,
+        53 => false,
+        54 => true,
+        55 => false,
+        56 => true,
+        57 => false,
+        58 => true,
+        59 => false,
         _ => todo!()
     }
 }
