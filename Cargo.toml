@@ -10,9 +10,6 @@ description = "CLI that reports churn between git diffs."
 documentation = "https://crates.io/crates/gloc-diff"
 repository = "https://github.com/NoahSchiro/gloc-diff"
 
-keywords = ["CI"]
-categories = ["CI"]
-
 [[bin]]
 name = "gloc"
 path = "src/main.rs"
