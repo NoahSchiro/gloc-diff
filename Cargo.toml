@@ -1,7 +1,17 @@
 [package]
 name = "gloc-diff"
-version = "0.1.0"
+version = "0.1.3"
 edition = "2024"
+
+readme = "README.md"
+license = "MIT"
+
+description = "CLI that reports churn between git diffs."
+documentation = "https://crates.io/crates/gloc-diff"
+repository = "https://github.com/NoahSchiro/gloc-diff"
+
+keywords = ["CI"]
+categories = ["CI"]
 
 [[bin]]
 name = "gloc"
