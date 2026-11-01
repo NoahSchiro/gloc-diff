@@ -7,7 +7,7 @@ readme = "README.md"
 license = "MIT"
 
 description = "CLI that reports churn between git diffs."
-documentation = "https://crates.io/crates/gloc-diff"
+documentation = "https://docs.rs/crate/gloc-diff/latest"
 repository = "https://github.com/NoahSchiro/gloc-diff"
 
 [[bin]]
