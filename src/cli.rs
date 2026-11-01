@@ -59,6 +59,10 @@ pub struct Args {
     #[arg(long)]
     pub no_gitignore: bool,
 
+    /// Ignore whitespace / formatting changes
+    #[arg(long)]
+    pub ignore_whitespace: bool,
+
     /// Border style of the churn table.
     #[arg(long, value_enum, default_value_t = TableStyle::Sharp)]
     pub style: TableStyle,

@@ -46,7 +46,7 @@ fn main() -> ExitCode {
 /// Exit code 1: threshold exceeded.
 /// Exit code 2: could not run / failed.
 fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
-    let diff_text = git::diff_range(&args.base, &args.head)?;
+    let diff_text = git::diff_range(&args.base, &args.head, args.ignore_whitespace)?;
     let files = diff::parse_diff(&diff_text);
 
     let repo_root = git::toplevel()?;

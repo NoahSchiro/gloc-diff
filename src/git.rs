@@ -21,15 +21,20 @@ impl std::error::Error for GitError {}
 
 /// Unified diff between the merge-base of `base` and `head` and `head`
 /// itself (`git diff base...head`), with zero context and rename detection.
-pub fn diff_range(base: &str, head: &str) -> Result<String, GitError> {
-    run(&[
+pub fn diff_range(base: &str, head: &str, ignore_whitespace: bool) -> Result<String, GitError> {
+    let mut args = vec![
         "diff",
-        "-U0",
+        "-U0",            // no color in output
         "--no-color",     // plain parseable text
         "--no-ext-diff",  // plain parseable text
         "--find-renames", // file renames don't count as changes
-        &format!("{base}...{head}"),
-    ])
+    ];
+    if ignore_whitespace {
+        args.push("--ignore-all-space");
+    }
+    let comparison = &format!("{base}...{head}");
+    args.push(comparison);
+    run(&args)
 }
 
 /// The best common ancestor of `base` and `head`.
