@@ -459,10 +459,10 @@ fn python_pr_splits_source_test_and_comment_churn() {
             "def greet(name):\n",
             "    \"\"\"Greet someone.\"\"\"\n",
             "    return f\"hello {name}\"\n",
-            "\n",                                   // blank
-            "# A loud greeting.\n",                 // comment
-            "def shout(name):\n",                   // source
-            "    return greet(name).upper()\n",     // source
+            "\n",                               // blank
+            "# A loud greeting.\n",             // comment
+            "def shout(name):\n",               // source
+            "    return greet(name).upper()\n", // source
         ),
         "shout",
     );

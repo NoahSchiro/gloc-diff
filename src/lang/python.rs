@@ -78,17 +78,17 @@ mod tests {
     #[test]
     fn test_functions_are_test_lines() {
         let text = concat!(
-            "import pytest\n",             // code
-            "\n",                          // blank
-            "@pytest.mark.slow\n",         // test: decorator inside decorated_definition
-            "def test_adds():\n",          // test
-            "    assert True\n",           // test
-            "\n",                          // blank
-            "async def test_waits():\n",   // test
-            "    await sleep(0)\n",        // test
-            "\n",                          // blank
-            "def helper():\n",             // code
-            "    return 1\n",              // code
+            "import pytest\n",           // code
+            "\n",                        // blank
+            "@pytest.mark.slow\n",       // test: decorator inside decorated_definition
+            "def test_adds():\n",        // test
+            "    assert True\n",         // test
+            "\n",                        // blank
+            "async def test_waits():\n", // test
+            "    await sleep(0)\n",      // test
+            "\n",                        // blank
+            "def helper():\n",           // code
+            "    return 1\n",            // code
         );
         assert_eq!(
             classes(text),
