@@ -378,15 +378,71 @@ fn invalid_patterns_are_errors_not_crashes() {
 }
 
 #[test]
-fn invalid_config_file_is_an_error() {
+fn malformed_config_file_is_an_error() {
     let repo = Repo::new();
     repo.commit("a.txt", "x\n", "base");
-    repo.commit(".gloc.toml", "exlude = [\"x\"]\n", "typo");
+    repo.commit(".gloc.toml", "exclude = [", "broken toml");
 
     let out = repo.gloc(&["--base", "main"]);
     assert_eq!(out.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains(".gloc.toml"), "stderr: {stderr}");
+}
+
+#[test]
+fn unknown_config_keys_are_ignored() {
+    let repo = Repo::new();
+    repo.commit("a.txt", "x\n", "base");
+    repo.commit(".gloc.toml", "future-option = true\n", "from the future");
+
+    let out = repo.gloc(&["--base", "main"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn whitespace_only_changes_count_by_default_and_with_the_flag() {
+    let repo = Repo::new();
+    repo.commit("src/lib.rs", "fn a() {}\nfn b() {}\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a() {}\n    fn b() {}\n", "reindent");
+
+    // The reindentation is two lines of churn by default.
+    let over = repo.gloc(&["--base", "main", "--max-total", "0"]);
+    assert_eq!(over.status.code(), Some(1));
+
+    // --ignore-whitespace drops it to zero.
+    let out = repo.gloc(&[
+        "--base",
+        "main",
+        "--ignore-whitespace",
+        "--max-total",
+        "0",
+    ]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn config_file_can_ignore_whitespace_changes() {
+    let repo = Repo::new();
+    repo.commit(".gloc.toml", "ignore-whitespace = true\n", "config");
+    repo.commit("src/lib.rs", "fn a() {}\nfn b() {}\n", "base");
+    repo.branch("feature");
+    repo.commit("src/lib.rs", "fn a() {}\n    fn b() {}\n", "reindent");
+
+    let out = repo.gloc(&["--base", "main", "--max-total", "0"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 #[test]

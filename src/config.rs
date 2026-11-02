@@ -19,11 +19,13 @@ pub struct Config {
     pub filters: Filters,
     /// How much churn is allowed.
     pub limits: Limits,
+    /// Whether whitespace-only changes are skipped when diffing.
+    pub ignore_whitespace: bool,
 }
 
-/// Filters as written in `.gloc.toml`. Exact same as CLI flags.
+/// Options as written in `.gloc.toml`. Same keys as the CLI flags.
 #[derive(Deserialize, Debug, Default)]
-#[serde(default, deny_unknown_fields, rename_all = "kebab-case")]
+#[serde(default, rename_all = "kebab-case")]
 struct FileOptions {
     include: Vec<String>,
     exclude: Vec<String>,
@@ -33,6 +35,7 @@ struct FileOptions {
     max_src: Option<u64>,
     max_test: Option<u64>,
     max_total: Option<u64>,
+    ignore_whitespace: bool,
 }
 
 impl FileOptions {
@@ -50,6 +53,7 @@ impl FileOptions {
                 max_test: self.max_test,
                 max_total: self.max_total,
             },
+            ignore_whitespace: self.ignore_whitespace,
         }
     }
 }
@@ -156,6 +160,7 @@ mod tests {
                 "include-re = [\"^lib\"]\n",
                 "exclude-re = [\"vend\"]\n",
                 "no-gitignore = true\n",
+                "ignore-whitespace = true\n",
                 "max-src = 500\n",
                 "max-test = 400\n",
                 "max-total = 300\n",
@@ -167,19 +172,21 @@ mod tests {
         assert_eq!(config.filters.include_re, ["^lib"]);
         assert_eq!(config.filters.exclude_re, ["vend"]);
         assert!(config.filters.no_gitignore);
+        assert!(config.ignore_whitespace);
         assert_eq!(config.limits.max_src, Some(500));
         assert_eq!(config.limits.max_test, Some(400));
         assert_eq!(config.limits.max_total, Some(300));
     }
 
     #[test]
-    fn unknown_keys_are_an_error() {
+    fn unknown_keys_are_ignored() {
         let root = TempRoot::new();
-        root.write(".gloc.toml", "exlude = [\"x\"]\n");
-        assert!(matches!(
-            load(root.0.as_path()),
-            Err(ConfigError::Parse { .. })
-        ));
+        root.write(
+            ".gloc.toml",
+            "exlude = [\"x\"]\nfuture-option = true\n",
+        );
+        let config = load(root.0.as_path()).unwrap();
+        assert_eq!(config, Config::default());
     }
 
     #[test]

@@ -46,13 +46,15 @@ fn main() -> ExitCode {
 /// Exit code 1: threshold exceeded.
 /// Exit code 2: could not run / failed.
 fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
-    let diff_text = git::diff_range(&args.base, &args.head, args.ignore_whitespace)?;
-    let files = diff::parse_diff(&diff_text);
-
     let repo_root = git::toplevel()?;
     let config = config::load(&repo_root)?;
     let filters = filter::Filters::merge(args.filters(), config.filters);
     let limits = limits::Limits::merge(args.limits(), config.limits);
+    let ignore_whitespace = args.ignore_whitespace || config.ignore_whitespace;
+
+    let diff_text = git::diff_range(&args.base, &args.head, ignore_whitespace)?;
+    let files = diff::parse_diff(&diff_text);
+
     let changed_dirs: BTreeSet<PathBuf> = files
         .iter()
         .filter_map(|file| Path::new(&file.path).parent())
