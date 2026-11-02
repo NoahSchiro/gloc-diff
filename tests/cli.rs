@@ -439,6 +439,63 @@ fn config_file_can_ignore_whitespace_changes() {
     );
 }
 
+#[cfg(feature = "python")]
+#[test]
+fn python_pr_splits_source_test_and_comment_churn() {
+    let repo = Repo::new();
+    repo.commit(
+        "src/app.py",
+        concat!(
+            "def greet(name):\n",
+            "    \"\"\"Greet someone.\"\"\"\n",
+            "    return f\"hello {name}\"\n",
+        ),
+        "base",
+    );
+    repo.branch("feature");
+    repo.commit(
+        "src/app.py",
+        concat!(
+            "def greet(name):\n",
+            "    \"\"\"Greet someone.\"\"\"\n",
+            "    return f\"hello {name}\"\n",
+            "\n",                                   // blank
+            "# A loud greeting.\n",                 // comment
+            "def shout(name):\n",                   // source
+            "    return greet(name).upper()\n",     // source
+        ),
+        "shout",
+    );
+    repo.commit(
+        "tests/test_app.py",
+        concat!(
+            "from app import greet\n",
+            "\n",
+            "def test_greets():\n",
+            "    assert greet(\"x\") == \"hello x\"\n",
+        ),
+        "integration test",
+    );
+
+    // Churn is 8: blank + comment + two source lines in app.py, then
+    // three test lines and a blank in tests/test_app.py.
+    let within = repo.gloc(&["--base", "main", "--max-total", "8"]);
+    assert!(
+        within.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&within.stderr)
+    );
+    let over = repo.gloc(&["--base", "main", "--max-total", "7"]);
+    assert_eq!(over.status.code(), Some(1));
+
+    // The source and test gates see their own buckets.
+    let src_over = repo.gloc(&["--base", "main", "--max-src", "1"]);
+    assert_eq!(src_over.status.code(), Some(1));
+    let test_over = repo.gloc(&["--base", "main", "--max-test", "2"]);
+    assert_eq!(test_over.status.code(), Some(1));
+}
+
+#[cfg(feature = "rust")]
 #[test]
 fn rust_pr_splits_source_test_comment_and_blank_churn() {
     let repo = Repo::new();
@@ -508,6 +565,7 @@ fn rust_pr_splits_source_test_comment_and_blank_churn() {
     assert_eq!(over.status.code(), Some(1));
 }
 
+#[cfg(feature = "rust")]
 #[test]
 fn block_comment_spanning_hunks_counts_as_comment() {
     let repo = Repo::new();
@@ -555,6 +613,7 @@ fn block_comment_spanning_hunks_counts_as_comment() {
     assert_eq!(over.status.code(), Some(1));
 }
 
+#[cfg(feature = "rust")]
 #[test]
 fn crlf_file_classifies_comments_and_code() {
     let repo = Repo::new();
@@ -676,6 +735,7 @@ fn total_only_prints_the_repo_churn_as_a_single_number() {
     assert_eq!(out.status.code(), Some(2));
 }
 
+#[cfg(feature = "rust")]
 #[test]
 fn max_src_and_max_test_gate_their_buckets() {
     let repo = Repo::new();

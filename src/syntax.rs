@@ -79,7 +79,7 @@ fn over_attributes(node: Node<'_>) -> usize {
     start
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rust"))]
 mod tests {
     use super::*;
     use crate::classify::{LineClass, classify_lines};

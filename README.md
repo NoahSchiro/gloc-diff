@@ -43,12 +43,17 @@ max-total = 1000
 
 ## Supported languages
 - [x] Rust
-- [ ] Python
+- [x] Python
 - [ ] Typescript / Javascript
 - [ ] HTML / CSS
 - [ ] C / C++
 - [ ] Java
 - [ ] Go
+
+Each language is a cargo feature, and only Rust is enabled by default. This
+can be removed with `--no-default-features`. Otherwise, specify which language
+you want to use via `--features "lang1","lang2"` and so on. Or `--features all`
+if you want all languages.
 
 ## CI
 

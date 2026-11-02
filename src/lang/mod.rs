@@ -5,6 +5,10 @@
 //! test code lives by path, and how to parse comments and inline tests
 //! out of the text. Languages register from submodules of this one.
 
+#[cfg(feature = "python")]
+mod python;
+
+#[cfg(feature = "rust")]
 mod rust;
 
 use std::path::Path;
@@ -45,7 +49,10 @@ impl Lang {
 /// Every language gloc knows. Extensions must not repeat across languages,
 /// so [`for_path`] stays unambiguous.
 pub static ALL: &[Lang] = &[
+    #[cfg(feature = "rust")]
     rust::LANG,
+    #[cfg(feature = "python")]
+    python::LANG,
     // For testing only
     Lang {
         name: "stub",
@@ -74,7 +81,10 @@ mod tests {
     fn matches_by_extension_case_insensitively() {
         assert!(for_path("a.stub").is_some());
         assert!(for_path("dir/A.STUB").is_some());
+        #[cfg(feature = "rust")]
         assert!(for_path("src/lib.rs").is_some());
+        #[cfg(feature = "python")]
+        assert!(for_path("src/app.py").is_some());
         assert!(for_path("noext").is_none());
         assert!(for_path(".hidden").is_none());
     }
@@ -90,6 +100,7 @@ mod tests {
         assert!(!lang.is_test_path("src/test_x.stub"));
     }
 
+    #[cfg(feature = "rust")]
     #[test]
     fn rust_has_a_grammar_and_the_stub_does_not() {
         assert!(for_path("a.rs").is_some_and(|lang| lang.grammar.is_some()));
