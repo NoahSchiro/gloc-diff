@@ -35,6 +35,7 @@ flags override it:
 ```toml
 include = ["src/**", "crates/*/src/**"]
 exclude = ["**/generated/**"]
+ignore-whitespace = true
 max-src = 500
 max-test = 300
 max-total = 1000
