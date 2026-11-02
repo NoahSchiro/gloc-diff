@@ -415,13 +415,7 @@ fn whitespace_only_changes_count_by_default_and_with_the_flag() {
     assert_eq!(over.status.code(), Some(1));
 
     // --ignore-whitespace drops it to zero.
-    let out = repo.gloc(&[
-        "--base",
-        "main",
-        "--ignore-whitespace",
-        "--max-total",
-        "0",
-    ]);
+    let out = repo.gloc(&["--base", "main", "--ignore-whitespace", "--max-total", "0"]);
     assert!(
         out.status.success(),
         "stderr: {}",

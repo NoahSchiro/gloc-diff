@@ -181,10 +181,7 @@ mod tests {
     #[test]
     fn unknown_keys_are_ignored() {
         let root = TempRoot::new();
-        root.write(
-            ".gloc.toml",
-            "exlude = [\"x\"]\nfuture-option = true\n",
-        );
+        root.write(".gloc.toml", "exlude = [\"x\"]\nfuture-option = true\n");
         let config = load(root.0.as_path()).unwrap();
         assert_eq!(config, Config::default());
     }
