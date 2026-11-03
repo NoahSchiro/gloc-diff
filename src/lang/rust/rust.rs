@@ -1,6 +1,6 @@
 //! The Rust language registration for gloc's registry.
 
-use super::{Grammar, Lang};
+use crate::lang::{Grammar, Lang};
 
 /// The Rust language
 pub static LANG: Lang = Lang {
@@ -9,8 +9,8 @@ pub static LANG: Lang = Lang {
     test_globs: &["**/tests/**", "*_test.rs"],
     grammar: Some(Grammar {
         language: || tree_sitter_rust::LANGUAGE.into(),
-        comment_query: include_str!("rust/comment.scm"),
-        test_query: Some(include_str!("rust/test.scm")),
+        comment_query: include_str!("comment.scm"),
+        test_query: Some(include_str!("test.scm")),
     }),
 };
 

@@ -1,17 +1,17 @@
 //! The JavaScript language registration for gloc's registry.
 
-use super::ecmascript;
-use super::{Grammar, Lang};
+use super::{COMMENT_QUERY, TEST_GLOBS, TEST_QUERY};
+use crate::lang::{Grammar, Lang};
 
 /// The JavaScript language
 pub static LANG: Lang = Lang {
     name: "javascript",
     extensions: &["js", "mjs", "cjs", "jsx"],
-    test_globs: ecmascript::TEST_GLOBS,
+    test_globs: TEST_GLOBS,
     grammar: Some(Grammar {
         language: || tree_sitter_javascript::LANGUAGE.into(),
-        comment_query: ecmascript::COMMENT_QUERY,
-        test_query: Some(ecmascript::TEST_QUERY),
+        comment_query: COMMENT_QUERY,
+        test_query: Some(TEST_QUERY),
     }),
 };
 

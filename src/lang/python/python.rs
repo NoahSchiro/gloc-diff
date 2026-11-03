@@ -1,6 +1,6 @@
 //! The Python language registration for gloc's registry.
 
-use super::{Grammar, Lang};
+use crate::lang::{Grammar, Lang};
 
 /// The Python language
 pub static LANG: Lang = Lang {
@@ -9,8 +9,8 @@ pub static LANG: Lang = Lang {
     test_globs: &["**/tests/**", "test_*.py", "*_test.py"],
     grammar: Some(Grammar {
         language: || tree_sitter_python::LANGUAGE.into(),
-        comment_query: include_str!("python/comment.scm"),
-        test_query: Some(include_str!("python/test.scm")),
+        comment_query: include_str!("comment.scm"),
+        test_query: Some(include_str!("test.scm")),
     }),
 };
 
