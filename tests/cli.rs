@@ -463,7 +463,7 @@ fn html_and_css_churn_counts_comments_as_comments() {
             "  <body>\n",
             "    <h1>Hi</h1>\n",
             "    <!-- nav goes here -->\n", // comment
-            "    <nav>Menu</nav>\n",       // source
+            "    <nav>Menu</nav>\n",        // source
             "  </body>\n",
             "</html>\n",
         ),
@@ -475,9 +475,9 @@ fn html_and_css_churn_counts_comments_as_comments() {
             "body {\n",
             "  margin: 0;\n",
             "}\n",
-            "\n",                       // blank
-            "/* brand color */\n",      // comment
-            "h1 {\n",                   // source
+            "\n",                        // blank
+            "/* brand color */\n",       // comment
+            "h1 {\n",                    // source
             "  color: rebeccapurple;\n", // source
             "}\n",                       // source
         ),

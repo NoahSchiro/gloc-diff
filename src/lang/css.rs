@@ -31,10 +31,10 @@ mod tests {
     #[test]
     fn comments_are_comment_lines_and_rules_are_code() {
         let text = concat!(
-            "/* base */\n",     // comment
-            "body {\n",         // code
-            "  margin: 0;\n",   // code
-            "}\n",              // code
+            "/* base */\n",   // comment
+            "body {\n",       // code
+            "  margin: 0;\n", // code
+            "}\n",            // code
         );
         assert_eq!(
             classes(text),
@@ -50,8 +50,8 @@ mod tests {
     #[test]
     fn multiline_comments_are_comment_lines() {
         let text = concat!(
-            "/* spans\n",       // comment
-            "   lines */\n",    // comment
+            "/* spans\n",          // comment
+            "   lines */\n",       // comment
             "a { color: red; }\n", // code
         );
         assert_eq!(

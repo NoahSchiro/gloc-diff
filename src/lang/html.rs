@@ -56,9 +56,9 @@ mod tests {
     #[test]
     fn multiline_comments_are_comment_lines() {
         let text = concat!(
-            "<!-- spans\n",  // comment
+            "<!-- spans\n",   // comment
             "   lines -->\n", // comment
-            "<p>x</p>\n",    // code
+            "<p>x</p>\n",     // code
         );
         assert_eq!(
             classes(text),
