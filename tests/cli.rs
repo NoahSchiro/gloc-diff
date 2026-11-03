@@ -463,7 +463,7 @@ fn javascript_pr_splits_source_test_and_comment_churn() {
             "}\n",
             "\n",                                    // blank
             "// A loud greeting.\n",                 // comment
-            "export function shout(name) {\n",      // source
+            "export function shout(name) {\n",       // source
             "  return greet(name).toUpperCase();\n", // source
             "}\n",                                   // source
         ),

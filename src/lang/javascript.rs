@@ -39,10 +39,10 @@ mod tests {
     #[test]
     fn line_and_block_comments_are_comment_lines() {
         let text = concat!(
-            "// line\n",       // comment
-            "/* block\n",      // comment
-            "   ends */\n",    // comment
-            "const x = 1;\n",  // code
+            "// line\n",      // comment
+            "/* block\n",     // comment
+            "   ends */\n",   // comment
+            "const x = 1;\n", // code
         );
         assert_eq!(
             classes(text),
@@ -58,13 +58,13 @@ mod tests {
     #[test]
     fn describe_and_it_calls_are_test_lines() {
         let text = concat!(
-            "describe(\"greet\", () => {\n",               // test
-            "  it(\"greets\", () => {\n",                  // test
+            "describe(\"greet\", () => {\n",                 // test
+            "  it(\"greets\", () => {\n",                    // test
             "    expect(greet(\"x\")).toBe(\"hello x\");\n", // test
-            "  });\n",                                     // test
-            "});\n",                                       // test
-            "function helper() {\n",                       // code
-            "}\n",                                         // code
+            "  });\n",                                       // test
+            "});\n",                                         // test
+            "function helper() {\n",                         // code
+            "}\n",                                           // code
         );
         assert_eq!(
             classes(text),

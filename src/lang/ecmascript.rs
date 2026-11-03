@@ -2,12 +2,7 @@
 //! live, and the syntax queries.
 
 /// Where test files live in JavaScript/TypeScript projects.
-pub const TEST_GLOBS: &[&str] = &[
-    "**/tests/**",
-    "**/__tests__/**",
-    "*.test.*",
-    "*.spec.*",
-];
+pub const TEST_GLOBS: &[&str] = &["**/tests/**", "**/__tests__/**", "*.test.*", "*.spec.*"];
 
 /// Query capturing every comment.
 pub const COMMENT_QUERY: &str = include_str!("ecmascript/comment.scm");

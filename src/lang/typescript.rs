@@ -53,15 +53,15 @@ mod tests {
     #[test]
     fn typescript_syntax_and_test_calls_are_classified() {
         let text = concat!(
-            "interface Greetable {\n",                     // code
-            "  name: string;\n",                           // code
-            "}\n",                                         // code
-            "describe<Greetable>(\"greet\", () => {\n",    // test
-            "  it(\"greets\", () => {\n",                  // test
+            "interface Greetable {\n",                       // code
+            "  name: string;\n",                             // code
+            "}\n",                                           // code
+            "describe<Greetable>(\"greet\", () => {\n",      // test
+            "  it(\"greets\", () => {\n",                    // test
             "    expect(greet(\"x\")).toBe(\"hello x\");\n", // test
-            "  });\n",                                     // test
-            "});\n",                                       // test
-            "const n: number = 1;\n",                      // code
+            "  });\n",                                       // test
+            "});\n",                                         // test
+            "const n: number = 1;\n",                        // code
         );
         assert_eq!(
             classes(&LANG, text),
@@ -82,12 +82,12 @@ mod tests {
     #[test]
     fn tsx_files_parse_with_the_tsx_grammar() {
         let text = concat!(
-            "// widget test\n",                 // comment
-            "describe(\"widget\", () => {\n",   // test
-            "  it(\"renders\", () => {\n",      // test
+            "// widget test\n",                     // comment
+            "describe(\"widget\", () => {\n",       // test
+            "  it(\"renders\", () => {\n",          // test
             "    render(<Widget name=\"x\" />);\n", // test
-            "  });\n",                          // test
-            "});\n",                            // test
+            "  });\n",                              // test
+            "});\n",                                // test
         );
         assert_eq!(
             classes(&LANG_TSX, text),
