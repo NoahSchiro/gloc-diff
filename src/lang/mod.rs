@@ -5,8 +5,14 @@
 //! test code lives by path, and how to parse comments and inline tests
 //! out of the text. Languages register from submodules of this one.
 
+#[cfg(feature = "css")]
+mod css;
+
 #[cfg(any(feature = "javascript", feature = "typescript"))]
 mod ecmascript;
+
+#[cfg(feature = "html")]
+mod html;
 
 #[cfg(feature = "javascript")]
 mod javascript;
@@ -33,8 +39,9 @@ pub struct Grammar {
     pub language: fn() -> Language,
     /// Query capturing every comment.
     pub comment_query: &'static str,
-    /// Query capturing every inline test node.
-    pub test_query: &'static str,
+    /// Query capturing every inline test node. `None` for languages with
+    /// no inline-test convention.
+    pub test_query: Option<&'static str>,
 }
 
 /// Everything gloc knows about one language.
@@ -68,6 +75,10 @@ pub static ALL: &[Lang] = &[
     typescript::LANG,
     #[cfg(feature = "typescript")]
     typescript::LANG_TSX,
+    #[cfg(feature = "html")]
+    html::LANG,
+    #[cfg(feature = "css")]
+    css::LANG,
     // For testing only
     Lang {
         name: "stub",
@@ -104,6 +115,10 @@ mod tests {
         assert!(for_path("src/app.js").is_some());
         #[cfg(feature = "typescript")]
         assert!(for_path("src/app.ts").is_some());
+        #[cfg(feature = "html")]
+        assert!(for_path("src/index.html").is_some());
+        #[cfg(feature = "css")]
+        assert!(for_path("src/site.css").is_some());
         assert!(for_path("noext").is_none());
         assert!(for_path(".hidden").is_none());
     }

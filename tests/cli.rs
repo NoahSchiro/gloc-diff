@@ -439,6 +439,63 @@ fn config_file_can_ignore_whitespace_changes() {
     );
 }
 
+#[cfg(all(feature = "css", feature = "html"))]
+#[test]
+fn html_and_css_churn_counts_comments_as_comments() {
+    let repo = Repo::new();
+    repo.commit(
+        "src/index.html",
+        concat!(
+            "<html>\n",
+            "  <body>\n",
+            "    <h1>Hi</h1>\n",
+            "  </body>\n",
+            "</html>\n",
+        ),
+        "base",
+    );
+    repo.commit("src/site.css", "body {\n  margin: 0;\n}\n", "base");
+    repo.branch("feature");
+    repo.commit(
+        "src/index.html",
+        concat!(
+            "<html>\n",
+            "  <body>\n",
+            "    <h1>Hi</h1>\n",
+            "    <!-- nav goes here -->\n", // comment
+            "    <nav>Menu</nav>\n",        // source
+            "  </body>\n",
+            "</html>\n",
+        ),
+        "nav",
+    );
+    repo.commit(
+        "src/site.css",
+        concat!(
+            "body {\n",
+            "  margin: 0;\n",
+            "}\n",
+            "\n",                        // blank
+            "/* brand color */\n",       // comment
+            "h1 {\n",                    // source
+            "  color: rebeccapurple;\n", // source
+            "}\n",                       // source
+        ),
+        "brand",
+    );
+
+    // Churn is 7: one comment + one source line in index.html, then one
+    // blank + one comment + three source lines in site.css.
+    let within = repo.gloc(&["--base", "main", "--max-total", "7"]);
+    assert!(
+        within.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&within.stderr)
+    );
+    let over = repo.gloc(&["--base", "main", "--max-total", "6"]);
+    assert_eq!(over.status.code(), Some(1));
+}
+
 #[cfg(feature = "javascript")]
 #[test]
 fn javascript_pr_splits_source_test_and_comment_churn() {

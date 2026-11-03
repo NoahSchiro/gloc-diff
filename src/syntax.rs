@@ -21,13 +21,16 @@ pub fn ranges(text: &str, grammar: &Grammar) -> (Vec<ByteRange>, Vec<ByteRange>)
                 end: node.end_byte(),
             })
             .collect();
-    let mut tests: Vec<ByteRange> = captured(&tree, text, &language, grammar.test_query, "test")
-        .into_iter()
-        .map(|node| ByteRange {
-            start: over_attributes(node),
-            end: node.end_byte(),
-        })
-        .collect();
+    let mut tests: Vec<ByteRange> = match grammar.test_query {
+        Some(test_query) => captured(&tree, text, &language, test_query, "test")
+            .into_iter()
+            .map(|node| ByteRange {
+                start: over_attributes(node),
+                end: node.end_byte(),
+            })
+            .collect(),
+        None => Vec::new(),
+    };
     // Two query patterns (or overlapping nodes) can yield out-of-order
     // ranges; the classifier sweeps them in line order.
     comments.sort_unstable();

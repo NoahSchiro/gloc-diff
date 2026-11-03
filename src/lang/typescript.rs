@@ -11,7 +11,7 @@ pub static LANG: Lang = Lang {
     grammar: Some(Grammar {
         language: || tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         comment_query: ecmascript::COMMENT_QUERY,
-        test_query: ecmascript::TEST_QUERY,
+        test_query: Some(ecmascript::TEST_QUERY),
     }),
 };
 
@@ -25,7 +25,7 @@ pub static LANG_TSX: Lang = Lang {
     grammar: Some(Grammar {
         language: || tree_sitter_typescript::LANGUAGE_TSX.into(),
         comment_query: ecmascript::COMMENT_QUERY,
-        test_query: ecmascript::TEST_QUERY,
+        test_query: Some(ecmascript::TEST_QUERY),
     }),
 };
 

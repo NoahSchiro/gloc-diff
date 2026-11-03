@@ -10,7 +10,7 @@ pub static LANG: Lang = Lang {
     grammar: Some(Grammar {
         language: || tree_sitter_python::LANGUAGE.into(),
         comment_query: include_str!("python/comment.scm"),
-        test_query: include_str!("python/test.scm"),
+        test_query: Some(include_str!("python/test.scm")),
     }),
 };
 
