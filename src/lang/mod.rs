@@ -33,8 +33,9 @@ pub struct Grammar {
     pub language: fn() -> Language,
     /// Query capturing every comment.
     pub comment_query: &'static str,
-    /// Query capturing every inline test node.
-    pub test_query: &'static str,
+    /// Query capturing every inline test node. `None` for languages with
+    /// no inline-test convention.
+    pub test_query: Option<&'static str>,
 }
 
 /// Everything gloc knows about one language.

@@ -10,7 +10,7 @@ pub static LANG: Lang = Lang {
     grammar: Some(Grammar {
         language: || tree_sitter_rust::LANGUAGE.into(),
         comment_query: include_str!("rust/comment.scm"),
-        test_query: include_str!("rust/test.scm"),
+        test_query: Some(include_str!("rust/test.scm")),
     }),
 };
 

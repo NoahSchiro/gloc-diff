@@ -11,7 +11,7 @@ pub static LANG: Lang = Lang {
     grammar: Some(Grammar {
         language: || tree_sitter_javascript::LANGUAGE.into(),
         comment_query: ecmascript::COMMENT_QUERY,
-        test_query: ecmascript::TEST_QUERY,
+        test_query: Some(ecmascript::TEST_QUERY),
     }),
 };
 
