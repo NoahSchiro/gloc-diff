@@ -45,7 +45,7 @@ max-total = 1000
 - [x] Rust
 - [x] Python
 - [x] Typescript / Javascript
-- [ ] HTML / CSS
+- [x] HTML / CSS (separate `html` and `css` features)
 - [ ] C / C++
 - [ ] Java
 - [ ] Go
