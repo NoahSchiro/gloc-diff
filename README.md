@@ -44,7 +44,7 @@ max-total = 1000
 ## Supported languages
 - [x] Rust
 - [x] Python
-- [ ] Typescript / Javascript
+- [x] Typescript / Javascript
 - [ ] HTML / CSS
 - [ ] C / C++
 - [ ] Java

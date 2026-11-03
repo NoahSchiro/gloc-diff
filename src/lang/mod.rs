@@ -5,11 +5,20 @@
 //! test code lives by path, and how to parse comments and inline tests
 //! out of the text. Languages register from submodules of this one.
 
+#[cfg(any(feature = "javascript", feature = "typescript"))]
+mod ecmascript;
+
+#[cfg(feature = "javascript")]
+mod javascript;
+
 #[cfg(feature = "python")]
 mod python;
 
 #[cfg(feature = "rust")]
 mod rust;
+
+#[cfg(feature = "typescript")]
+mod typescript;
 
 use std::path::Path;
 
@@ -53,6 +62,12 @@ pub static ALL: &[Lang] = &[
     rust::LANG,
     #[cfg(feature = "python")]
     python::LANG,
+    #[cfg(feature = "javascript")]
+    javascript::LANG,
+    #[cfg(feature = "typescript")]
+    typescript::LANG,
+    #[cfg(feature = "typescript")]
+    typescript::LANG_TSX,
     // For testing only
     Lang {
         name: "stub",
@@ -85,6 +100,10 @@ mod tests {
         assert!(for_path("src/lib.rs").is_some());
         #[cfg(feature = "python")]
         assert!(for_path("src/app.py").is_some());
+        #[cfg(feature = "javascript")]
+        assert!(for_path("src/app.js").is_some());
+        #[cfg(feature = "typescript")]
+        assert!(for_path("src/app.ts").is_some());
         assert!(for_path("noext").is_none());
         assert!(for_path(".hidden").is_none());
     }

@@ -439,6 +439,66 @@ fn config_file_can_ignore_whitespace_changes() {
     );
 }
 
+#[cfg(feature = "javascript")]
+#[test]
+fn javascript_pr_splits_source_test_and_comment_churn() {
+    let repo = Repo::new();
+    repo.commit(
+        "src/app.js",
+        concat!(
+            "// Greets by name.\n",
+            "export function greet(name) {\n",
+            "  return `hello ${name}`;\n",
+            "}\n",
+        ),
+        "base",
+    );
+    repo.branch("feature");
+    repo.commit(
+        "src/app.js",
+        concat!(
+            "// Greets by name.\n",
+            "export function greet(name) {\n",
+            "  return `hello ${name}`;\n",
+            "}\n",
+            "\n",                                    // blank
+            "// A loud greeting.\n",                 // comment
+            "export function shout(name) {\n",       // source
+            "  return greet(name).toUpperCase();\n", // source
+            "}\n",                                   // source
+        ),
+        "shout",
+    );
+    repo.commit(
+        "src/app.test.js",
+        concat!(
+            "import { greet } from \"./app.js\";\n",
+            "\n",
+            "test(\"greets\", () => {\n",
+            "  expect(greet(\"x\")).toBe(\"hello x\");\n",
+            "});\n",
+        ),
+        "test",
+    );
+
+    // Churn is 10: blank + comment + three source lines in app.js, then
+    // four test lines and a blank in src/app.test.js.
+    let within = repo.gloc(&["--base", "main", "--max-total", "10"]);
+    assert!(
+        within.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&within.stderr)
+    );
+    let over = repo.gloc(&["--base", "main", "--max-total", "9"]);
+    assert_eq!(over.status.code(), Some(1));
+
+    // The source and test gates see their own buckets.
+    let src_over = repo.gloc(&["--base", "main", "--max-src", "2"]);
+    assert_eq!(src_over.status.code(), Some(1));
+    let test_over = repo.gloc(&["--base", "main", "--max-test", "3"]);
+    assert_eq!(test_over.status.code(), Some(1));
+}
+
 #[cfg(feature = "python")]
 #[test]
 fn python_pr_splits_source_test_and_comment_churn() {
