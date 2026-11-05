@@ -1,2 +1,2 @@
-mod rust;
-pub use rust::LANG;
+mod lang;
+pub use lang::LANG;

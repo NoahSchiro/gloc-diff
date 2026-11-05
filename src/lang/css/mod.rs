@@ -1,2 +1,2 @@
-mod css;
-pub use css::LANG;
+mod lang;
+pub use lang::LANG;

@@ -1,2 +1,2 @@
-mod html;
-pub use html::LANG;
+mod lang;
+pub use lang::LANG;

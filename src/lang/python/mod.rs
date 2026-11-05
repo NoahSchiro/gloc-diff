@@ -1,2 +1,2 @@
-mod python;
-pub use python::LANG;
+mod lang;
+pub use lang::LANG;
