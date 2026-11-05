@@ -1,17 +1,17 @@
 //! The TypeScript language registration for gloc's registry.
 
-use super::ecmascript;
-use super::{Grammar, Lang};
+use super::{COMMENT_QUERY, TEST_GLOBS, TEST_QUERY};
+use crate::lang::{Grammar, Lang};
 
 /// The TypeScript language
 pub static LANG: Lang = Lang {
     name: "typescript",
     extensions: &["ts", "mts", "cts"],
-    test_globs: ecmascript::TEST_GLOBS,
+    test_globs: TEST_GLOBS,
     grammar: Some(Grammar {
         language: || tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-        comment_query: ecmascript::COMMENT_QUERY,
-        test_query: Some(ecmascript::TEST_QUERY),
+        comment_query: COMMENT_QUERY,
+        test_query: Some(TEST_QUERY),
     }),
 };
 
@@ -21,11 +21,11 @@ pub static LANG: Lang = Lang {
 pub static LANG_TSX: Lang = Lang {
     name: "typescript",
     extensions: &["tsx"],
-    test_globs: ecmascript::TEST_GLOBS,
+    test_globs: TEST_GLOBS,
     grammar: Some(Grammar {
         language: || tree_sitter_typescript::LANGUAGE_TSX.into(),
-        comment_query: ecmascript::COMMENT_QUERY,
-        test_query: Some(ecmascript::TEST_QUERY),
+        comment_query: COMMENT_QUERY,
+        test_query: Some(TEST_QUERY),
     }),
 };
 

@@ -14,17 +14,11 @@ mod ecmascript;
 #[cfg(feature = "html")]
 mod html;
 
-#[cfg(feature = "javascript")]
-mod javascript;
-
 #[cfg(feature = "python")]
 mod python;
 
 #[cfg(feature = "rust")]
 mod rust;
-
-#[cfg(feature = "typescript")]
-mod typescript;
 
 use std::path::Path;
 
@@ -70,11 +64,11 @@ pub static ALL: &[Lang] = &[
     #[cfg(feature = "python")]
     python::LANG,
     #[cfg(feature = "javascript")]
-    javascript::LANG,
+    ecmascript::javascript::LANG,
     #[cfg(feature = "typescript")]
-    typescript::LANG,
+    ecmascript::typescript::LANG,
     #[cfg(feature = "typescript")]
-    typescript::LANG_TSX,
+    ecmascript::typescript::LANG_TSX,
     #[cfg(feature = "html")]
     html::LANG,
     #[cfg(feature = "css")]

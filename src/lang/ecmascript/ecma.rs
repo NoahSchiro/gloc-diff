@@ -5,10 +5,10 @@
 pub const TEST_GLOBS: &[&str] = &["**/tests/**", "**/__tests__/**", "*.test.*", "*.spec.*"];
 
 /// Query capturing every comment.
-pub const COMMENT_QUERY: &str = include_str!("ecmascript/comment.scm");
+pub const COMMENT_QUERY: &str = include_str!("comment.scm");
 
 /// Query capturing every inline test node.
-pub const TEST_QUERY: &str = include_str!("ecmascript/test.scm");
+pub const TEST_QUERY: &str = include_str!("test.scm");
 
 #[cfg(test)]
 mod tests {

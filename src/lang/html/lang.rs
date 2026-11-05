@@ -1,6 +1,6 @@
 //! The HTML language registration for gloc's registry.
 
-use super::{Grammar, Lang};
+use crate::lang::{Grammar, Lang};
 
 /// The HTML language
 pub static LANG: Lang = Lang {
@@ -9,7 +9,7 @@ pub static LANG: Lang = Lang {
     test_globs: &[],
     grammar: Some(Grammar {
         language: || tree_sitter_html::LANGUAGE.into(),
-        comment_query: include_str!("html/comment.scm"),
+        comment_query: include_str!("comment.scm"),
         // No inline-test convention.
         test_query: None,
     }),

@@ -4,8 +4,6 @@
 //! unknown files falling back to blank/non-blank counting.
 
 mod classify;
-mod cli;
-mod config;
 mod count;
 mod diff;
 mod filter;
@@ -13,6 +11,7 @@ mod git;
 mod globs;
 mod lang;
 mod limits;
+mod options;
 mod syntax;
 
 use std::collections::BTreeSet;
@@ -21,8 +20,8 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use crate::cli::{Args, TableStyle};
 use crate::count::{Buckets, FileCount};
+use crate::options::cli::{Args, TableStyle};
 use tabled::builder::Builder;
 use tabled::settings::{
     Alignment, Modify, Padding, Style,
@@ -47,7 +46,7 @@ fn main() -> ExitCode {
 /// Exit code 2: could not run / failed.
 fn run(args: &Args) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let repo_root = git::toplevel()?;
-    let config = config::load(&repo_root)?;
+    let config = options::config::load(&repo_root)?;
     let filters = filter::Filters::merge(args.filters(), config.filters);
     let limits = limits::Limits::merge(args.limits(), config.limits);
     let ignore_whitespace = args.ignore_whitespace || config.ignore_whitespace;
