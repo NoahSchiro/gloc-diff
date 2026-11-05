@@ -8,6 +8,9 @@
 #[cfg(feature = "css")]
 mod css;
 
+#[cfg(any(feature = "c", feature = "cpp"))]
+mod cfamily;
+
 #[cfg(any(feature = "javascript", feature = "typescript"))]
 mod ecmascript;
 
@@ -73,6 +76,10 @@ pub static ALL: &[Lang] = &[
     html::LANG,
     #[cfg(feature = "css")]
     css::LANG,
+    #[cfg(feature = "c")]
+    cfamily::c::LANG,
+    #[cfg(feature = "cpp")]
+    cfamily::cpp::LANG,
     // For testing only
     Lang {
         name: "stub",
@@ -113,6 +120,10 @@ mod tests {
         assert!(for_path("src/index.html").is_some());
         #[cfg(feature = "css")]
         assert!(for_path("src/site.css").is_some());
+        #[cfg(feature = "c")]
+        assert!(for_path("src/main.c").is_some());
+        #[cfg(feature = "cpp")]
+        assert!(for_path("src/app.cpp").is_some());
         assert!(for_path("noext").is_none());
         assert!(for_path(".hidden").is_none());
     }

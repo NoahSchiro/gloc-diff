@@ -46,7 +46,8 @@ max-total = 1000
 - [x] Python
 - [x] Typescript / Javascript
 - [x] HTML / CSS (separate `html` and `css` features)
-- [ ] C / C++
+- [x] C
+- [x] C++
 - [ ] Java
 - [ ] Go
 
