@@ -48,7 +48,7 @@ max-total = 1000
 - [x] HTML / CSS (separate `html` and `css` features)
 - [x] C
 - [x] C++
-- [ ] Java
+- [x] Java
 - [x] Go
 
 Each language is a cargo feature, and only Rust is enabled by default. This
