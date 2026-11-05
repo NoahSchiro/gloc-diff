@@ -9,9 +9,9 @@ mod diff;
 mod filter;
 mod git;
 mod globs;
-mod options;
 mod lang;
 mod limits;
+mod options;
 mod syntax;
 
 use std::collections::BTreeSet;
@@ -20,8 +20,8 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use crate::options::cli::{Args, TableStyle};
 use crate::count::{Buckets, FileCount};
+use crate::options::cli::{Args, TableStyle};
 use tabled::builder::Builder;
 use tabled::settings::{
     Alignment, Modify, Padding, Style,
