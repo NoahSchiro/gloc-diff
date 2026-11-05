@@ -49,7 +49,7 @@ max-total = 1000
 - [x] C
 - [x] C++
 - [ ] Java
-- [ ] Go
+- [x] Go
 
 Each language is a cargo feature, and only Rust is enabled by default. This
 can be removed with `--no-default-features`. Otherwise, specify which language
