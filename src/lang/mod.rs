@@ -17,6 +17,9 @@ mod ecmascript;
 #[cfg(feature = "go")]
 mod go;
 
+#[cfg(feature = "java")]
+mod java;
+
 #[cfg(feature = "html")]
 mod html;
 
@@ -81,6 +84,8 @@ pub static ALL: &[Lang] = &[
     css::LANG,
     #[cfg(feature = "go")]
     go::LANG,
+    #[cfg(feature = "java")]
+    java::LANG,
     #[cfg(feature = "c")]
     cfamily::c::LANG,
     #[cfg(feature = "cpp")]
@@ -127,6 +132,8 @@ mod tests {
         assert!(for_path("src/site.css").is_some());
         #[cfg(feature = "go")]
         assert!(for_path("cmd/app.go").is_some());
+        #[cfg(feature = "java")]
+        assert!(for_path("src/Demo.java").is_some());
         #[cfg(feature = "c")]
         assert!(for_path("src/main.c").is_some());
         #[cfg(feature = "cpp")]
